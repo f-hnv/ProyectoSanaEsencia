@@ -15,6 +15,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.example.sanaesencia.ui.login.LoginScreen
+import com.example.sanaesencia.ui.registro.RegistroScreen
 
 // Definición de las rutas solicitadas
 sealed class Rutas(val ruta: String) {
@@ -50,7 +51,10 @@ fun SanaesenciaNavigation(navController: NavHostController) {
             onNavigateToRegistro = { navController.navigate(Rutas.Registro.ruta) }
         )
         }
-        composable(Rutas.Registro.ruta) { PlaceholderScreen("Registro") }
+        composable(Rutas.Registro.ruta) {RegistroScreen(
+            onNavigateToLogin = { navController.navigate(Rutas.Login.ruta) { popUpTo(Rutas.Login.ruta) { inclusive = true } } }
+        )
+        }
         composable(Rutas.Home.ruta) { PlaceholderScreen("Dashboard / Próximas Citas") }
         composable(Rutas.CatalogoServicios.ruta) { PlaceholderScreen("Catálogo de Servicios") }
         composable(Rutas.Agenda.ruta) { PlaceholderScreen("Agenda") }
