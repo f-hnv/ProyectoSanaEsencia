@@ -55,6 +55,7 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
+    implementation("androidx.navigation:navigation-compose:2.7.7")
     ksp(libs.androidx.room.compiler)         // genera el código de los DAOs
 
 }
