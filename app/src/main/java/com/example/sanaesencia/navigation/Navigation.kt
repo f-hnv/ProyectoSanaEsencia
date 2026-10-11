@@ -17,6 +17,7 @@ import androidx.navigation.compose.composable
 import com.example.sanaesencia.ui.login.LoginScreen
 import com.example.sanaesencia.ui.registro.RegistroScreen
 import com.example.sanaesencia.ui.perfil.PerfilScreen
+import com.example.sanaesencia.ui.home.HomeScreen
 
 // Definición de las rutas solicitadas
 sealed class Rutas(val ruta: String) {
@@ -58,6 +59,13 @@ fun SanaesenciaNavigation(navController: NavHostController) {
         }
         composable(Rutas.Perfil.ruta) {
             PerfilScreen()
+        }
+        composable(Rutas.Home.ruta) {
+                    HomeScreen(
+                        onNavigateToCatalogo = { navController.navigate(Rutas.CatalogoServicios.ruta) },
+                        onNavigateToAgenda = { navController.navigate(Rutas.Agenda.ruta) },
+                        onNavigateToPerfil = { navController.navigate(Rutas.Perfil.ruta) }
+                    )
         }
         composable(Rutas.CatalogoServicios.ruta) { PlaceholderScreen("Catálogo de Servicios") }
         composable(Rutas.Agenda.ruta) { PlaceholderScreen("Agenda") }
