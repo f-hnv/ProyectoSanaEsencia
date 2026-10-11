@@ -6,7 +6,7 @@ import com.example.sanaesencia.data.local.seed.SeedData
 import com.example.sanaesencia.di.AppContainer
 
 /**
- * Construye los ViewModels inyectándoles los repositorios del AppContainer.
+ * Construye los ViewModels inyectándoles las dependencias del AppContainer.
  * Android no sabe crear ViewModels con parámetros, por eso necesita esta fábrica.
  *
  * USO desde Compose:
@@ -14,6 +14,7 @@ import com.example.sanaesencia.di.AppContainer
  *   val factory = remember { ViewModelFactory(container) }
  *   val catalogoVm: CatalogoViewModel = viewModel(factory = factory)
  *   val agendaVm: AgendaViewModel = viewModel(factory = factory)
+ *   val sedeVm: SedeViewModel = viewModel(factory = factory)
  *
  * TODO(login): cuando exista la sesión, pasar aquí el email del usuario autenticado.
  */
@@ -30,7 +31,9 @@ class ViewModelFactory(
         modelClass.isAssignableFrom(AgendaViewModel::class.java) ->
             AgendaViewModel(container.citaRepository, container.servicioRepository, emailPaciente) as T
 
+        modelClass.isAssignableFrom(SedeViewModel::class.java) ->
+            SedeViewModel(container.locationHelper) as T
+
         else -> throw IllegalArgumentException("ViewModel desconocido: ${modelClass.name}")
     }
 }
-
