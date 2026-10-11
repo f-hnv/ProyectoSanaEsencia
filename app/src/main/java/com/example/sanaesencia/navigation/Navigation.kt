@@ -14,8 +14,16 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.example.sanaesencia.ui.login.LoginScreen
+import com.example.sanaesencia.ui.registro.RegistroScreen
+import com.example.sanaesencia.ui.perfil.PerfilScreen
+import com.example.sanaesencia.ui.home.HomeScreen
+import com.example.sanaesencia.ui.catalogo.CatalogoScreen
+import com.example.sanaesencia.ui.agenda.AgendaScreen
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.navigation.compose.rememberNavController
+import com.example.sanaesencia.ui.theme.SanaesenciaTheme
 
-// Definición de las rutas solicitadas
 sealed class Rutas(val ruta: String) {
     object Login : Rutas("login")
     object Registro : Rutas("registro")
@@ -44,12 +52,33 @@ fun SanaesenciaNavigation(navController: NavHostController) {
             slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Right, tween(300)) + fadeOut(tween(300))
         }
     ) {
-        composable(Rutas.Login.ruta) { PlaceholderScreen("Login") }
-        composable(Rutas.Registro.ruta) { PlaceholderScreen("Registro") }
-        composable(Rutas.Home.ruta) { PlaceholderScreen("Dashboard / Próximas Citas") }
-        composable(Rutas.CatalogoServicios.ruta) { PlaceholderScreen("Catálogo de Servicios") }
-        composable(Rutas.Agenda.ruta) { PlaceholderScreen("Agenda") }
-        composable(Rutas.Perfil.ruta) { PlaceholderScreen("Perfil") }
+        composable(Rutas.Login.ruta) {LoginScreen(
+            onNavigateToHome = { navController.navigate(Rutas.Home.ruta) },
+            onNavigateToRegistro = { navController.navigate(Rutas.Registro.ruta) }
+        )
+        }
+        composable(Rutas.Registro.ruta) {RegistroScreen(
+            onNavigateToLogin = { navController.navigate(Rutas.Login.ruta) { popUpTo(Rutas.Login.ruta) { inclusive = true } } }
+        )
+        }
+        composable(Rutas.Home.ruta) {
+                    HomeScreen(
+                        onNavigateToCatalogo = { navController.navigate(Rutas.CatalogoServicios.ruta) },
+                        onNavigateToAgenda = { navController.navigate(Rutas.Agenda.ruta) },
+                        onNavigateToPerfil = { navController.navigate(Rutas.Perfil.ruta) }
+                    )
+        }
+        composable(Rutas.CatalogoServicios.ruta) {
+                    CatalogoScreen(
+                        onNavigateBack = { navController.popBackStack() }
+                    )
+        }
+        composable(Rutas.Agenda.ruta) {
+                    AgendaScreen(
+                        onNavigateBack = { navController.popBackStack() }
+                    )
+        }
+        composable(Rutas.Perfil.ruta) { PerfilScreen() }
     }
 }
 
@@ -65,5 +94,13 @@ fun PlaceholderScreen(titulo: String) {
             style = MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.onBackground
         )
+    }
+}
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun NavegacionCompletaPreview() {
+    SanaesenciaTheme {
+        val navController = rememberNavController()
+        SanaesenciaNavigation(navController = navController)
     }
 }
