@@ -17,6 +17,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.ui.tooling.preview.Preview
+import com.example.sanaesencia.ui.theme.SanaesenciaTheme
 
 @Composable
 fun RegistroScreen(
@@ -109,6 +111,15 @@ fun RegistroScreen(
         TextButton(onClick = onNavigateToLogin) {
             Text("¿Ya tienes cuenta? Inicia sesión")
         }
+    }
+}
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun RegistroScreenPreview() {
+    SanaesenciaTheme {
+        RegistroScreen(
+            onNavigateToLogin = {}
+        )
     }
 }
 

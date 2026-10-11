@@ -14,7 +14,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-
+import androidx.compose.ui.tooling.preview.Preview
+import com.example.sanaesencia.ui.theme.SanaesenciaTheme
 @Composable
 fun LoginScreen(
     onNavigateToHome: () -> Unit,
@@ -87,6 +88,18 @@ fun LoginScreen(
         TextButton(onClick = onNavigateToRegistro) {
             Text("¿No tienes cuenta? Regístrate aquí")
         }
+    }
+
+}
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun LoginScreenPreview() {
+    SanaesenciaTheme {
+
+        LoginScreen(
+            onNavigateToHome = {},
+            onNavigateToRegistro = {}
+        )
     }
 }
 

@@ -13,7 +13,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-
+import androidx.compose.ui.tooling.preview.Preview
+import com.example.sanaesencia.ui.theme.SanaesenciaTheme
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
@@ -114,4 +115,14 @@ fun MenuButton(
         }
     }
 }
-
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun HomeScreenPreview() {
+    SanaesenciaTheme {
+        HomeScreen(
+            onNavigateToCatalogo = {},
+            onNavigateToAgenda = {},
+            onNavigateToPerfil = {}
+        )
+    }
+}

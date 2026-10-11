@@ -24,6 +24,8 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.rememberAsyncImagePainter
 import java.io.File
+import androidx.compose.ui.tooling.preview.Preview
+import com.example.sanaesencia.ui.theme.SanaesenciaTheme
 
 @Composable
 fun PerfilScreen(viewModel: PerfilViewModel = viewModel()) {
@@ -111,5 +113,12 @@ fun createTempPictureUri(context: Context): Uri {
         "${context.packageName}.provider",
         tempFile
     )
+}
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun PerfilScreenPreview() {
+    SanaesenciaTheme {
+        PerfilScreen()
+    }
 }
 

@@ -10,7 +10,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-
+import androidx.compose.ui.tooling.preview.Preview
+import com.example.sanaesencia.ui.theme.SanaesenciaTheme
 data class Servicio(val id: Int, val nombre: String, val descripcion: String, val precio: String)
 
 val listaServicios = listOf(
@@ -73,6 +74,15 @@ fun CatalogoScreen(onNavigateBack: () -> Unit) {
                 }
             }
         }
+    }
+}
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun CatalogoScreenPreview() {
+    SanaesenciaTheme {
+        CatalogoScreen(
+            onNavigateBack = {}
+        )
     }
 }
 

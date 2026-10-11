@@ -1,7 +1,9 @@
 package com.example.sanaesencia.ui.registro
 
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.ViewModel
 
 class RegistroViewModel : ViewModel() {
@@ -80,5 +82,6 @@ class RegistroViewModel : ViewModel() {
             onSuccess()
         }
     }
+
 }
 

@@ -20,7 +20,9 @@ import com.example.sanaesencia.ui.perfil.PerfilScreen
 import com.example.sanaesencia.ui.home.HomeScreen
 import com.example.sanaesencia.ui.catalogo.CatalogoScreen
 import com.example.sanaesencia.ui.agenda.AgendaScreen
-
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.navigation.compose.rememberNavController
+import com.example.sanaesencia.ui.theme.SanaesenciaTheme
 
 sealed class Rutas(val ruta: String) {
     object Login : Rutas("login")
@@ -59,9 +61,6 @@ fun SanaesenciaNavigation(navController: NavHostController) {
             onNavigateToLogin = { navController.navigate(Rutas.Login.ruta) { popUpTo(Rutas.Login.ruta) { inclusive = true } } }
         )
         }
-        composable(Rutas.Perfil.ruta) {
-            PerfilScreen()
-        }
         composable(Rutas.Home.ruta) {
                     HomeScreen(
                         onNavigateToCatalogo = { navController.navigate(Rutas.CatalogoServicios.ruta) },
@@ -79,7 +78,7 @@ fun SanaesenciaNavigation(navController: NavHostController) {
                         onNavigateBack = { navController.popBackStack() }
                     )
         }
-        composable(Rutas.Perfil.ruta) { PlaceholderScreen("Perfil") }
+        composable(Rutas.Perfil.ruta) { PerfilScreen() }
     }
 }
 
@@ -95,5 +94,13 @@ fun PlaceholderScreen(titulo: String) {
             style = MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.onBackground
         )
+    }
+}
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun NavegacionCompletaPreview() {
+    SanaesenciaTheme {
+        val navController = rememberNavController()
+        SanaesenciaNavigation(navController = navController)
     }
 }
