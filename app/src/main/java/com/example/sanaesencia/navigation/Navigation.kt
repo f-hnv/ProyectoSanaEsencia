@@ -19,8 +19,9 @@ import com.example.sanaesencia.ui.registro.RegistroScreen
 import com.example.sanaesencia.ui.perfil.PerfilScreen
 import com.example.sanaesencia.ui.home.HomeScreen
 import com.example.sanaesencia.ui.catalogo.CatalogoScreen
+import com.example.sanaesencia.ui.agenda.AgendaScreen
 
-// Definición de las rutas solicitadas
+
 sealed class Rutas(val ruta: String) {
     object Login : Rutas("login")
     object Registro : Rutas("registro")
@@ -73,7 +74,11 @@ fun SanaesenciaNavigation(navController: NavHostController) {
                         onNavigateBack = { navController.popBackStack() }
                     )
         }
-        composable(Rutas.Agenda.ruta) { PlaceholderScreen("Agenda") }
+        composable(Rutas.Agenda.ruta) {
+                    AgendaScreen(
+                        onNavigateBack = { navController.popBackStack() }
+                    )
+        }
         composable(Rutas.Perfil.ruta) { PlaceholderScreen("Perfil") }
     }
 }
