@@ -68,7 +68,7 @@ object SeedData {
         db.withTransaction {
             db.servicioDao().insertarTodos(servicios)
             db.especialistaDao().insertarTodos(especialistas)
-            citas(ahora).forEach { db.citaDao().insertar(it) }
+            (citas(ahora) + citasAlertas(ahora)).forEach { db.citaDao().insertar(it) }
         }
     }
 
@@ -81,4 +81,23 @@ object SeedData {
             set(Calendar.SECOND, 0)
             set(Calendar.MILLISECOND, 0)
         }.timeInMillis
+
+    // Pacientes ficticios con distintos niveles de riesgo (ALTO ≈ 78 pts, MEDIO ≈ 40 pts).
+    fun citasAlertas(ahora: Long): List<CitaEntity> {
+        fun cita(email: String, especialistaId: Long, dias: Int, hora: Int, estado: EstadoCita) =
+            CitaEntity(
+                emailPaciente = email, servicioId = 1, especialistaId = especialistaId,
+                fechaHoraInicio = diaHora(ahora, dias, hora), duracionMin = 50,
+                modalidad = Modalidad.PRESENCIAL, estado = estado
+            )
+        return listOf(
+            cita("riesgo.alto.demo@example.com", 2, -75, 9, EstadoCita.COMPLETADA),
+            cita("riesgo.alto.demo@example.com", 2, -60, 9, EstadoCita.NO_ASISTIO),
+            cita("riesgo.alto.demo@example.com", 2, -50, 9, EstadoCita.NO_ASISTIO),
+            cita("riesgo.alto.demo@example.com", 2, -45, 9, EstadoCita.CANCELADA),
+            cita("riesgo.medio.demo@example.com", 1, -50, 11, EstadoCita.COMPLETADA),
+            cita("riesgo.medio.demo@example.com", 1, -40, 11, EstadoCita.CANCELADA),
+            cita("riesgo.medio.demo@example.com", 1, -33, 11, EstadoCita.CANCELADA)
+        )
+    }
 }
