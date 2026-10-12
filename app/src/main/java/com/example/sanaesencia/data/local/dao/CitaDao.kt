@@ -10,12 +10,28 @@ import com.example.sanaesencia.data.local.entity.CitaEntity
 import com.example.sanaesencia.data.local.relation.CitaConDetalle
 import com.example.sanaesencia.domain.model.EstadoCita
 import kotlinx.coroutines.flow.Flow
+import com.example.sanaesencia.data.local.relation.ResumenPaciente
+
+
 
 @Dao
 interface CitaDao {
 
     // ABORT: si ya existe una cita del especialista a esa hora exacta (índice único),
     // lanza SQLiteConstraintException y el Repository la traduce a un error de negocio.
+
+    @Query(
+        """SELECT emailPaciente,
+                  SUM(CASE WHEN estado = 'COMPLETADA' THEN 1 ELSE 0 END) AS completadas,
+                  SUM(CASE WHEN estado = 'CANCELADA' THEN 1 ELSE 0 END) AS canceladas,
+                  SUM(CASE WHEN estado = 'NO_ASISTIO' THEN 1 ELSE 0 END) AS inasistencias,
+                  SUM(CASE WHEN estado = 'PROGRAMADA' AND fechaHoraInicio >= :ahora THEN 1 ELSE 0 END) AS futuras,
+                  MAX(CASE WHEN estado = 'COMPLETADA' THEN fechaHoraInicio END) AS ultimaAtencion,
+                  MIN(fechaHoraInicio) AS primeraCita
+           FROM citas
+           GROUP BY emailPaciente"""
+    )
+    fun observarResumenPacientes(ahora: Long): Flow<List<ResumenPaciente>>
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertar(cita: CitaEntity): Long
 
