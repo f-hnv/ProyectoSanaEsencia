@@ -1,8 +1,12 @@
 package com.example.sanaesencia.ui.login
 
+import android.content.Context
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class LoginViewModel : ViewModel() {
 
@@ -17,6 +21,9 @@ class LoginViewModel : ViewModel() {
 
     private val _passwordError = mutableStateOf<String?>(null)
     val passwordError: State<String?> = _passwordError
+
+    private val _cargando = mutableStateOf(false)
+    val cargando: State<Boolean> = _cargando
 
     fun onEmailChange(newEmail: String) {
         _email.value = newEmail
@@ -35,7 +42,7 @@ class LoginViewModel : ViewModel() {
             !emailInput.endsWith("@profesor.duoc.cl") &&
             !emailInput.endsWith("@gmail.com") &&
             !emailInput.endsWith("@hotmail.com")) {
-            _emailError.value = "Solo correos con @duoc.cl, @profesor.duoc.cl, @gmail.com y @hotmail.com"
+            _emailError.value = "Solo correos permitidos (@duoc.cl, @gmail.com, etc.)"
         } else {
             _emailError.value = null
         }
@@ -51,13 +58,37 @@ class LoginViewModel : ViewModel() {
         }
     }
 
-    fun login(onSuccess: () -> Unit) {
+    fun login(context: Context, onSuccess: () -> Unit) {
         validateEmail(_email.value)
         validatePassword(_password.value)
 
-        if (_emailError.value == null && _passwordError.value == null && _email.value.isNotBlank() && _password.value.isNotBlank()) {
-            onSuccess()
+        if (_emailError.value == null && _passwordError.value == null &&
+            _email.value.isNotBlank() && _password.value.isNotBlank() &&
+            !_cargando.value) {
+
+            _cargando.value = true
+
+            viewModelScope.launch {
+                // Simulamos el tiempo de carga
+                delay(1500)
+
+                // Leemos los datos guardados en el registro
+                val sharedPref = context.getSharedPreferences("sanaesencia_prefs", Context.MODE_PRIVATE)
+                val emailGuardado = sharedPref.getString("email_registrado", null)
+                val passwordGuardada = sharedPref.getString("password_registrada", null)
+
+                // Validación estricta
+                if (emailGuardado == _email.value && passwordGuardada == _password.value) {
+                    _cargando.value = false
+                    onSuccess()
+                } else if (emailGuardado == null) {
+                    _cargando.value = false
+                    _emailError.value = "No existe una cuenta. ¡Regístrate primero!"
+                } else {
+                    _cargando.value = false
+                    _passwordError.value = "Credenciales incorrectas"
+                }
+            }
         }
     }
 }
-

@@ -12,16 +12,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import androidx.compose.ui.tooling.preview.Preview
 import com.example.sanaesencia.ui.login.LoginScreen
 import com.example.sanaesencia.ui.registro.RegistroScreen
 import com.example.sanaesencia.ui.perfil.PerfilScreen
 import com.example.sanaesencia.ui.home.HomeScreen
 import com.example.sanaesencia.ui.catalogo.CatalogoScreen
 import com.example.sanaesencia.ui.agenda.AgendaScreen
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.navigation.compose.rememberNavController
 import com.example.sanaesencia.ui.theme.SanaesenciaTheme
 
 sealed class Rutas(val ruta: String) {
@@ -29,7 +31,13 @@ sealed class Rutas(val ruta: String) {
     object Registro : Rutas("registro")
     object Home : Rutas("home")
     object CatalogoServicios : Rutas("catalogo_servicios")
-    object Agenda : Rutas("agenda")
+
+    // Ahora acepta servicioId y citaId para la edición
+    object Agenda : Rutas("agenda?servicioId={servicioId}&citaId={citaId}") {
+        fun crearRuta(servicioId: Long?, citaId: Long?) =
+            "agenda?servicioId=${servicioId?.toString() ?: ""}&citaId=${citaId?.toString() ?: ""}"
+    }
+
     object Perfil : Rutas("perfil")
 }
 
@@ -38,64 +46,65 @@ fun SanaesenciaNavigation(navController: NavHostController) {
     NavHost(
         navController = navController,
         startDestination = Rutas.Login.ruta,
-        // Implementación de animación funcional para transiciones de entrada y salida
-        enterTransition = {
-            slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Left, tween(300)) + fadeIn(tween(300))
-        },
-        exitTransition = {
-            slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Left, tween(300)) + fadeOut(tween(300))
-        },
-        popEnterTransition = {
-            slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Right, tween(300)) + fadeIn(tween(300))
-        },
-        popExitTransition = {
-            slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Right, tween(300)) + fadeOut(tween(300))
-        }
+        enterTransition = { slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Left, tween(300)) + fadeIn(tween(300)) },
+        exitTransition = { slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Left, tween(300)) + fadeOut(tween(300)) },
+        popEnterTransition = { slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Right, tween(300)) + fadeIn(tween(300)) },
+        popExitTransition = { slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Right, tween(300)) + fadeOut(tween(300)) }
     ) {
-        composable(Rutas.Login.ruta) {LoginScreen(
-            onNavigateToHome = { navController.navigate(Rutas.Home.ruta) },
-            onNavigateToRegistro = { navController.navigate(Rutas.Registro.ruta) }
-        )
+        composable(Rutas.Login.ruta) {
+            LoginScreen(
+                onNavigateToHome = { navController.navigate(Rutas.Home.ruta) },
+                onNavigateToRegistro = { navController.navigate(Rutas.Registro.ruta) }
+            )
         }
-        composable(Rutas.Registro.ruta) {RegistroScreen(
-            onNavigateToLogin = { navController.navigate(Rutas.Login.ruta) { popUpTo(Rutas.Login.ruta) { inclusive = true } } }
-        )
+        composable(Rutas.Registro.ruta) {
+            RegistroScreen(
+                onNavigateToLogin = { navController.navigate(Rutas.Login.ruta) { popUpTo(Rutas.Login.ruta) { inclusive = true } } }
+            )
         }
         composable(Rutas.Home.ruta) {
-                    HomeScreen(
-                        onNavigateToCatalogo = { navController.navigate(Rutas.CatalogoServicios.ruta) },
-                        onNavigateToAgenda = { navController.navigate(Rutas.Agenda.ruta) },
-                        onNavigateToPerfil = { navController.navigate(Rutas.Perfil.ruta) }
-                    )
+            HomeScreen(
+                onNavigateToCatalogo = { navController.navigate(Rutas.CatalogoServicios.ruta) },
+                onNavigateToAgenda = { servId, citId -> navController.navigate(Rutas.Agenda.crearRuta(servId, citId)) },
+                onNavigateToPerfil = { navController.navigate(Rutas.Perfil.ruta) }
+            )
         }
         composable(Rutas.CatalogoServicios.ruta) {
-                    CatalogoScreen(
-                        onNavigateBack = { navController.popBackStack() }
-                    )
+            CatalogoScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToAgenda = { servicioId -> navController.navigate(Rutas.Agenda.crearRuta(servicioId, null)) }
+            )
         }
-        composable(Rutas.Agenda.ruta) {
-                    AgendaScreen(
-                        onNavigateBack = { navController.popBackStack() }
-                    )
+
+        composable(
+            route = Rutas.Agenda.ruta,
+            arguments = listOf(
+                navArgument("servicioId") { type = NavType.StringType; nullable = true },
+                navArgument("citaId") { type = NavType.StringType; nullable = true }
+            )
+        ) { backStackEntry ->
+            val servicioIdStr = backStackEntry.arguments?.getString("servicioId")
+            val citaIdStr = backStackEntry.arguments?.getString("citaId")
+
+            val servId = if (servicioIdStr.isNullOrBlank()) null else servicioIdStr.toLongOrNull()
+            val citId = if (citaIdStr.isNullOrBlank()) null else citaIdStr.toLongOrNull()
+
+            AgendaScreen(
+                servicioIdPreseleccionado = servId,
+                citaIdAEditar = citId,
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
-        composable(Rutas.Perfil.ruta) { PerfilScreen() }
+
+        composable(Rutas.Perfil.ruta) {
+            PerfilScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onLogout = { navController.navigate(Rutas.Login.ruta) { popUpTo(Rutas.Login.ruta) { inclusive = true } } }
+            )
+        }
     }
 }
 
-// Vista temporal para probar que la navegación no crashee
-@Composable
-fun PlaceholderScreen(titulo: String) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = titulo,
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-    }
-}
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun NavegacionCompletaPreview() {

@@ -1,9 +1,8 @@
 package com.example.sanaesencia.ui.registro
 
-import androidx.compose.runtime.Composable
+import android.content.Context
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.ViewModel
 
 class RegistroViewModel : ViewModel() {
@@ -68,7 +67,7 @@ class RegistroViewModel : ViewModel() {
         }
     }
 
-    fun registrar(onSuccess: () -> Unit) {
+    fun registrar(context: Context, onSuccess: () -> Unit) {
         onNombreChange(_nombre.value)
         onEmailChange(_email.value)
         onPasswordChange(_password.value)
@@ -79,9 +78,16 @@ class RegistroViewModel : ViewModel() {
             _nombre.value.isNotBlank() && _email.value.isNotBlank() &&
             _password.value.isNotBlank() && _confirmPassword.value.isNotBlank()
         ) {
+            // Guardamos el usuario en la memoria local (SharedPreferences)
+            val sharedPref = context.getSharedPreferences("sanaesencia_prefs", Context.MODE_PRIVATE)
+            with(sharedPref.edit()) {
+                putString("nombre_registrado", _nombre.value) //
+                putString("email_registrado", _email.value)
+                putString("password_registrada", _password.value)
+                apply()
+            }
             onSuccess()
         }
     }
-
 }
 

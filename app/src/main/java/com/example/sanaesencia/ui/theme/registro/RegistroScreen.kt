@@ -13,6 +13,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -26,6 +27,8 @@ fun RegistroScreen(
     viewModel: RegistroViewModel = viewModel()
 ) {
     val scrollState = rememberScrollState()
+    // 1. OBTENEMOS EL CONTEXTO AQUÍ
+    val context = LocalContext.current
 
     Column(
         modifier = Modifier
@@ -100,7 +103,8 @@ fun RegistroScreen(
         Spacer(modifier = Modifier.height(32.dp))
 
         Button(
-            onClick = { viewModel.registrar(onSuccess = onNavigateToLogin) },
+            // 2. LE PASAMOS EL CONTEXTO A LA FUNCIÓN REGISTRAR
+            onClick = { viewModel.registrar(context = context, onSuccess = onNavigateToLogin) },
             modifier = Modifier.fillMaxWidth().height(50.dp)
         ) {
             Text("Registrarse")
@@ -113,6 +117,7 @@ fun RegistroScreen(
         }
     }
 }
+
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun RegistroScreenPreview() {
@@ -122,4 +127,3 @@ fun RegistroScreenPreview() {
         )
     }
 }
-

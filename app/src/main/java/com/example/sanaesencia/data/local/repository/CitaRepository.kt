@@ -89,4 +89,28 @@ class CitaRepository(
         citaDao.actualizarEstado(citaId, EstadoCita.CANCELADA, ahora())
         return Resultado.Exito(Unit)
     }
+    // Obtiene una cita específica para cargarla en la pantalla de edición
+    suspend fun obtenerDetallePorId(citaId: Long): CitaConDetalle? {
+        return citaDao.obtenerDetallePorId(citaId)
+    }
+
+    // Valida y actualiza la fecha de una cita existente
+    suspend fun reprogramar(citaId: Long, nuevaFechaHora: Long): Resultado<Unit> = db.withTransaction {
+        val cita = citaDao.obtenerDetallePorId(citaId)?.cita
+            ?: return@withTransaction Resultado.Error(ErrorAgenda.CitaNoEncontrada)
+
+        if (cita.estado != EstadoCita.PROGRAMADA) return@withTransaction Resultado.Error(ErrorAgenda.EstadoInvalido)
+        if (nuevaFechaHora <= ahora()) return@withTransaction Resultado.Error(ErrorAgenda.FechaPasada)
+
+        val fin = nuevaFechaHora + cita.duracionMin * 60_000L
+        val traslapes = citaDao.buscarTraslapes(cita.especialistaId, nuevaFechaHora, fin)
+
+        // Verificamos que no choque con otra cita (ignorando la cita actual que estamos moviendo)
+        if (traslapes.any { it.id != citaId }) {
+            return@withTransaction Resultado.Error(ErrorAgenda.HorarioOcupado)
+        }
+
+        citaDao.actualizar(cita.copy(fechaHoraInicio = nuevaFechaHora, actualizadaEn = ahora()))
+        Resultado.Exito(Unit)
+    }
 }

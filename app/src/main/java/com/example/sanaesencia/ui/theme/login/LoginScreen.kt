@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.sanaesencia.ui.theme.SanaesenciaTheme
+
 @Composable
 fun LoginScreen(
     onNavigateToHome: () -> Unit,
@@ -26,6 +27,8 @@ fun LoginScreen(
     val emailError = viewModel.emailError.value
     val password = viewModel.password.value
     val passwordError = viewModel.passwordError.value
+    val cargando = viewModel.cargando.value // Leemos el estado de carga
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     Column(
         modifier = Modifier
@@ -52,7 +55,8 @@ fun LoginScreen(
             isError = emailError != null,
             supportingText = { if (emailError != null) Text(emailError) },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !cargando // Bloqueamos el campo si está cargando
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -69,33 +73,43 @@ fun LoginScreen(
             supportingText = { if (passwordError != null) Text(passwordError) },
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !cargando // Bloqueamos el campo si está cargando
         )
 
         Spacer(modifier = Modifier.height(32.dp))
 
         Button(
-            onClick = { viewModel.login(onSuccess = onNavigateToHome) },
+            onClick = { viewModel.login(context = context, onSuccess = onNavigateToHome) },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(50.dp)
+                .height(50.dp),
+            enabled = !cargando // Bloqueamos el botón para evitar doble clic
         ) {
-            Text("Ingresar")
+            if (cargando) {
+                // Mostramos el spinner
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Text("Ingresar")
+            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        TextButton(onClick = onNavigateToRegistro) {
+        TextButton(onClick = onNavigateToRegistro, enabled = !cargando) {
             Text("¿No tienes cuenta? Regístrate aquí")
         }
     }
-
 }
+
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun LoginScreenPreview() {
     SanaesenciaTheme {
-
         LoginScreen(
             onNavigateToHome = {},
             onNavigateToRegistro = {}
