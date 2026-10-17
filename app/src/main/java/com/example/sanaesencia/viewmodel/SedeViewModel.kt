@@ -3,7 +3,7 @@ package com.example.sanaesencia.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.sanaesencia.domain.model.SedeSanaesencia
-import com.example.sanaesencia.nativo.LocationHelper
+import com.example.sanaesencia.nativo.ProveedorUbicacion
 import com.example.sanaesencia.nativo.UbicacionResultado
 import com.example.sanaesencia.utils.Geo
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -69,7 +69,7 @@ data class SedeUiState(
  *   onPermisoResultado(concedido: Boolean)   // llamar desde el callback del launcher
  *   actualizarUbicacion()                    // botón "Reintentar" / "Actualizar" / volver de Ajustes
  */
-class SedeViewModel(private val locationHelper: LocationHelper) : ViewModel() {
+class SedeViewModel(private val locationHelper: ProveedorUbicacion) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SedeUiState())
     val uiState: StateFlow<SedeUiState> = _uiState.asStateFlow()

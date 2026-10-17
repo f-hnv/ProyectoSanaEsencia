@@ -1,6 +1,7 @@
 package com.example.sanaesencia.ui.catalogo
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -82,7 +83,8 @@ fun CatalogoContent(
                 Card(
                     onClick = { onNavigateToAgenda(servicio.id) },
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.secondary.copy(alpha = .6f))
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(

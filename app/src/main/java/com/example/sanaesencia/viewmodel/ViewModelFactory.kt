@@ -16,11 +16,11 @@ import com.example.sanaesencia.di.AppContainer
  *   val agendaVm: AgendaViewModel = viewModel(factory = factory)
  *   val sedeVm: SedeViewModel = viewModel(factory = factory)
  *
- * TODO(login): cuando exista la sesión, pasar aquí el email del usuario autenticado.
+ * La sesión identifica al paciente; los datos demo se usan solo si no existe sesión (pruebas/vistas de desarrollo).
  */
 class ViewModelFactory(
     private val container: AppContainer,
-    private val emailPaciente: String = SeedData.EMAIL_DEMO
+    private val emailPaciente: String = container.emailPacienteActual ?: SeedData.EMAIL_DEMO
 ) : ViewModelProvider.Factory {
 
     @Suppress("UNCHECKED_CAST")
@@ -29,7 +29,7 @@ class ViewModelFactory(
             CatalogoViewModel(container.servicioRepository, container.especialistaRepository) as T
 
         modelClass.isAssignableFrom(AgendaViewModel::class.java) ->
-            AgendaViewModel(container.citaRepository, container.servicioRepository, emailPaciente) as T
+            AgendaViewModel(container.citaRepository, container.servicioRepository, container.especialistaRepository, emailPaciente) as T
 
         modelClass.isAssignableFrom(SedeViewModel::class.java) ->
             SedeViewModel(container.locationHelper) as T

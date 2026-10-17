@@ -10,14 +10,22 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val PastelColorScheme = lightColorScheme(
-    primary = PrimaryPastelBlue,
-    onPrimary = TextSoftDark,
-    secondary = SecondaryPastelGreen,
-    onSecondary = TextSoftDark,
+    primary = SageGreen,
+    onPrimary = SurfaceWhite,
+    primaryContainer = SagePastel,
+    onPrimaryContainer = TextSoftDark,
+    secondary = SereneBlue,
+    onSecondary = SurfaceWhite,
+    secondaryContainer = SerenePastel,
+    onSecondaryContainer = TextSoftDark,
+    surfaceVariant = androidx.compose.ui.graphics.Color(0xFFEDF2EA),
+    onSurfaceVariant = TextSoftDark,
+    outline = androidx.compose.ui.graphics.Color(0xFF71796F),
     background = BackgroundSoft,
     onBackground = TextSoftDark,
     surface = SurfaceWhite,
     onSurface = TextSoftDark,
+    surfaceTint = SageGreen,
     error = ErrorSoftRed,
     onError = SurfaceWhite
 )

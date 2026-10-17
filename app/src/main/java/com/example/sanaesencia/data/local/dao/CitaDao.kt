@@ -17,8 +17,7 @@ import com.example.sanaesencia.data.local.relation.ResumenPaciente
 @Dao
 interface CitaDao {
 
-    // ABORT: si ya existe una cita del especialista a esa hora exacta (índice único),
-    // lanza SQLiteConstraintException y el Repository la traduce a un error de negocio.
+    // Los traslapes se validan dentro de una transacción en el repositorio.
 
     @Query(
         """SELECT emailPaciente,
@@ -75,6 +74,11 @@ interface CitaDao {
         fin: Long,
         excluir: EstadoCita = EstadoCita.CANCELADA
     ): List<CitaEntity>
+
+    @Query("""SELECT * FROM citas WHERE especialistaId = :especialistaId
+        AND estado != 'CANCELADA' AND fechaHoraInicio < :fin
+        AND (fechaHoraInicio + duracionMin * 60000) > :inicio""")
+    fun observarOcupacion(especialistaId: Long, inicio: Long, fin: Long): Flow<List<CitaEntity>>
 
     // Base para las alertas de deserción (ratios de cancelaciones / inasistencias).
     @Query("SELECT COUNT(*) FROM citas WHERE emailPaciente = :email AND estado = :estado")

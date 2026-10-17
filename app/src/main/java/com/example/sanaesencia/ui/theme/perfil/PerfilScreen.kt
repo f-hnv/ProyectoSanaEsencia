@@ -1,6 +1,9 @@
 package com.example.sanaesencia.ui.perfil
 
 import android.content.Context
+import android.Manifest
+import android.content.ActivityNotFoundException
+import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -16,6 +19,7 @@ import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -23,11 +27,15 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.rememberAsyncImagePainter
 import java.io.File
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.sanaesencia.ui.theme.SanaesenciaTheme
+import com.example.sanaesencia.ui.components.SanaOutlineButton as OutlinedButton
+import com.example.sanaesencia.ui.components.SanaOutlineButton as ElevatedButton
+import androidx.compose.foundation.BorderStroke
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,7 +46,8 @@ fun PerfilScreen(
 ) {
     val context = LocalContext.current
     val fotoUri by viewModel.fotoPerfilUri
-    var tempCameraUri by remember { mutableStateOf<Uri?>(null) }
+    var tempCameraUri by rememberSaveable { mutableStateOf<String?>(null) }
+    var errorRecurso by remember { mutableStateOf<String?>(null) }
 
     val galeriaLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
@@ -47,7 +56,25 @@ fun PerfilScreen(
     val camaraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
-        if (success) viewModel.actualizarFotoPerfil(tempCameraUri)
+        if (success) viewModel.actualizarFotoPerfil(tempCameraUri?.let(Uri::parse))
+    }
+
+    fun abrirCamara() {
+        errorRecurso = null
+        try {
+            val uri = createTempPictureUri(context)
+            tempCameraUri = uri.toString()
+            camaraLauncher.launch(uri)
+        } catch (_: ActivityNotFoundException) {
+            errorRecurso = "No hay una aplicación de cámara disponible. Puedes elegir una imagen de la galería."
+        } catch (_: SecurityException) {
+            errorRecurso = "No se pudo acceder a la cámara. Revisa el permiso o usa la galería."
+        }
+    }
+
+    val permisoCamara = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { concedido ->
+        if (concedido) abrirCamara()
+        else errorRecurso = "No se concedió el permiso de cámara. Puedes continuar y elegir una imagen de la galería."
     }
 
     Scaffold(
@@ -105,8 +132,9 @@ fun PerfilScreen(
             ) {
                 ElevatedButton(
                     onClick = {
-                        tempCameraUri = createTempPictureUri(context)
-                        camaraLauncher.launch(tempCameraUri!!)
+                        if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED)
+                            abrirCamara()
+                        else permisoCamara.launch(Manifest.permission.CAMERA)
                     }
                 ) {
                     Icon(Icons.Filled.CameraAlt, contentDescription = "Cámara", modifier = Modifier.padding(end = 8.dp))
@@ -115,7 +143,12 @@ fun PerfilScreen(
 
                 ElevatedButton(
                     onClick = {
-                        galeriaLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                        errorRecurso = null
+                        try {
+                            galeriaLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                        } catch (_: ActivityNotFoundException) {
+                            errorRecurso = "No hay un selector de imágenes disponible en el dispositivo."
+                        }
                     }
                 ) {
                     Icon(Icons.Filled.PhotoLibrary, contentDescription = "Galería", modifier = Modifier.padding(end = 8.dp))
@@ -123,13 +156,20 @@ fun PerfilScreen(
                 }
             }
 
+            errorRecurso?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 16.dp)) }
+
             Spacer(modifier = Modifier.height(48.dp))
 
             // Botón de cerrar sesión
             OutlinedButton(
-                onClick = onLogout,
+                onClick = {
+                    context.getSharedPreferences("sanaesencia_prefs", Context.MODE_PRIVATE)
+                        .edit().remove("email_sesion").apply()
+                    onLogout()
+                },
                 modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.error)
             ) {
                 Icon(Icons.Filled.ExitToApp, contentDescription = "Cerrar Sesión", modifier = Modifier.padding(end = 8.dp))
                 Text("Cerrar Sesión")

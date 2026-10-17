@@ -24,6 +24,8 @@ import com.example.sanaesencia.ui.perfil.PerfilScreen
 import com.example.sanaesencia.ui.home.HomeScreen
 import com.example.sanaesencia.ui.catalogo.CatalogoScreen
 import com.example.sanaesencia.ui.agenda.AgendaScreen
+import com.example.sanaesencia.ui.sede.SedeScreen
+import com.example.sanaesencia.ui.contacto.ContactoScreen
 import com.example.sanaesencia.ui.theme.SanaesenciaTheme
 
 sealed class Rutas(val ruta: String) {
@@ -39,6 +41,8 @@ sealed class Rutas(val ruta: String) {
     }
 
     object Perfil : Rutas("perfil")
+    object Sede : Rutas("sede")
+    object Contacto : Rutas("contacto")
 }
 
 @Composable
@@ -53,8 +57,14 @@ fun SanaesenciaNavigation(navController: NavHostController) {
     ) {
         composable(Rutas.Login.ruta) {
             LoginScreen(
-                onNavigateToHome = { navController.navigate(Rutas.Home.ruta) },
-                onNavigateToRegistro = { navController.navigate(Rutas.Registro.ruta) }
+                onNavigateToHome = {
+                    navController.navigate(Rutas.Home.ruta) {
+                        popUpTo(Rutas.Login.ruta) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
+                onNavigateToRegistro = { navController.navigate(Rutas.Registro.ruta) },
+                onNavigateToContacto = { navController.navigate(Rutas.Contacto.ruta) }
             )
         }
         composable(Rutas.Registro.ruta) {
@@ -65,8 +75,14 @@ fun SanaesenciaNavigation(navController: NavHostController) {
         composable(Rutas.Home.ruta) {
             HomeScreen(
                 onNavigateToCatalogo = { navController.navigate(Rutas.CatalogoServicios.ruta) },
-                onNavigateToAgenda = { servId, citId -> navController.navigate(Rutas.Agenda.crearRuta(servId, citId)) },
-                onNavigateToPerfil = { navController.navigate(Rutas.Perfil.ruta) }
+                onNavigateToAgenda = { servId, citId ->
+                    // Una reserva nueva necesita elegir primero el servicio y su duración.
+                    if (servId == null && citId == null) navController.navigate(Rutas.CatalogoServicios.ruta)
+                    else navController.navigate(Rutas.Agenda.crearRuta(servId, citId))
+                },
+                onNavigateToPerfil = { navController.navigate(Rutas.Perfil.ruta) },
+                onNavigateToSede = { navController.navigate(Rutas.Sede.ruta) },
+                onNavigateToContacto = { navController.navigate(Rutas.Contacto.ruta) }
             )
         }
         composable(Rutas.CatalogoServicios.ruta) {
@@ -92,6 +108,7 @@ fun SanaesenciaNavigation(navController: NavHostController) {
             AgendaScreen(
                 servicioIdPreseleccionado = servId,
                 citaIdAEditar = citId,
+                onNavigateToSede = { navController.navigate(Rutas.Sede.ruta) },
                 onNavigateBack = { navController.popBackStack() }
             )
         }
@@ -99,8 +116,15 @@ fun SanaesenciaNavigation(navController: NavHostController) {
         composable(Rutas.Perfil.ruta) {
             PerfilScreen(
                 onNavigateBack = { navController.popBackStack() },
-                onLogout = { navController.navigate(Rutas.Login.ruta) { popUpTo(Rutas.Login.ruta) { inclusive = true } } }
+                onLogout = { navController.navigate(Rutas.Login.ruta) { popUpTo(Rutas.Home.ruta) { inclusive = true } } }
             )
+        }
+        composable(Rutas.Sede.ruta) {
+            SedeScreen(onNavigateBack = { navController.popBackStack() })
+        }
+        composable(Rutas.Contacto.ruta) {
+            ContactoScreen(onNavigateBack = { navController.popBackStack() },
+                onNavigateToSede = { navController.navigate(Rutas.Sede.ruta) })
         }
     }
 }

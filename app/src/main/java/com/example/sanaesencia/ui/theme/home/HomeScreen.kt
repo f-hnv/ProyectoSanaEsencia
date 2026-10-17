@@ -3,6 +3,9 @@ package com.example.sanaesencia.ui.home
 import android.content.Context
 import android.text.format.DateFormat
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -10,6 +13,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -17,6 +22,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -26,12 +32,15 @@ import com.example.sanaesencia.ui.theme.SanaesenciaTheme
 import com.example.sanaesencia.viewmodel.AgendaViewModel
 import com.example.sanaesencia.data.local.relation.CitaConDetalle
 import java.util.Calendar
+import com.example.sanaesencia.ui.components.SanaOutlineButton as OutlinedButton
 
 @Composable
 fun HomeScreen(
     onNavigateToCatalogo: () -> Unit,
     onNavigateToAgenda: (Long?, Long?) -> Unit,
-    onNavigateToPerfil: () -> Unit
+    onNavigateToPerfil: () -> Unit,
+    onNavigateToSede: () -> Unit,
+    onNavigateToContacto: () -> Unit
 ) {
     val context = LocalContext.current
     val app = context.applicationContext as com.example.sanaesencia.SanaesenciaApp
@@ -50,7 +59,9 @@ fun HomeScreen(
         onCancelarCita = { citaId -> viewModel.cancelarCita(citaId) },
         onNavigateToCatalogo = onNavigateToCatalogo,
         onNavigateToAgenda = onNavigateToAgenda,
-        onNavigateToPerfil = onNavigateToPerfil
+        onNavigateToPerfil = onNavigateToPerfil,
+        onNavigateToSede = onNavigateToSede,
+        onNavigateToContacto = onNavigateToContacto
     )
 }
 
@@ -62,7 +73,9 @@ fun HomeContent(
     onCancelarCita: (Long) -> Unit,
     onNavigateToCatalogo: () -> Unit,
     onNavigateToAgenda: (Long?, Long?) -> Unit,
-    onNavigateToPerfil: () -> Unit
+    onNavigateToPerfil: () -> Unit,
+    onNavigateToSede: () -> Unit,
+    onNavigateToContacto: () -> Unit
 ) {
     Scaffold(
         topBar = {
@@ -131,7 +144,8 @@ fun HomeContent(
                                     OutlinedButton(
                                         onClick = { onCancelarCita(citaId) },
                                         modifier = Modifier.weight(1f),
-                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                                        border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.error)
                                     ) { Text("Cancelar") }
                                 }
                             } else {
@@ -153,18 +167,28 @@ fun HomeContent(
                 MenuButton(modifier = Modifier.weight(1f), titulo = "Agenda", icono = Icons.Filled.CalendarMonth, onClick = { onNavigateToAgenda(null, null) })
             }
 
-            MenuButton(modifier = Modifier.fillMaxWidth(), titulo = "Mi Perfil", icono = Icons.Filled.Person, onClick = onNavigateToPerfil)
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                MenuButton(modifier = Modifier.weight(1f), titulo = "Mi Perfil", icono = Icons.Filled.Person, onClick = onNavigateToPerfil)
+                MenuButton(modifier = Modifier.weight(1f), titulo = "Cómo llegar", icono = Icons.Filled.LocationOn, onClick = onNavigateToSede)
+            }
+            MenuButton(modifier = Modifier.fillMaxWidth(), titulo = "Contáctanos", icono = Icons.AutoMirrored.Filled.Chat, onClick = onNavigateToContacto)
         }
     }
 }
 
 @Composable
 fun MenuButton(modifier: Modifier = Modifier, titulo: String, icono: ImageVector, onClick: () -> Unit) {
-    ElevatedButton(onClick = onClick, modifier = modifier.height(80.dp), shape = RoundedCornerShape(12.dp)) {
+    ElevatedButton(onClick = onClick, modifier = modifier.heightIn(min = 104.dp), shape = RoundedCornerShape(20.dp),
+        border = BorderStroke(1.5.dp, Brush.linearGradient(listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.secondary))),
+        colors = ButtonDefaults.elevatedButtonColors(containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.primary),
+        elevation = ButtonDefaults.elevatedButtonElevation(defaultElevation = 2.dp, pressedElevation = 0.dp)) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(imageVector = icono, contentDescription = titulo)
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(text = titulo)
+            Box(Modifier.background(MaterialTheme.colorScheme.primaryContainer, CircleShape).padding(10.dp)) {
+                Icon(imageVector = icono, contentDescription = null, modifier = Modifier.size(24.dp))
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(text = titulo, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
         }
     }
 }
@@ -179,7 +203,9 @@ fun HomeScreenPreview() {
             onCancelarCita = {},
             onNavigateToCatalogo = {},
             onNavigateToAgenda = { _, _ -> },
-            onNavigateToPerfil = {}
+            onNavigateToPerfil = {},
+            onNavigateToSede = {},
+            onNavigateToContacto = {}
         )
     }
 }

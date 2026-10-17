@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.sanaesencia.data.local.dao.CitaDao
 import com.example.sanaesencia.data.local.dao.EspecialistaDao
 import com.example.sanaesencia.data.local.dao.ServicioDao
@@ -15,7 +17,7 @@ import com.example.sanaesencia.data.local.entity.ServicioEntity
 // Si más adelante cambia alguna entidad, hay que subir "version" y definir una migración.
 @Database(
     entities = [ServicioEntity::class, EspecialistaEntity::class, CitaEntity::class],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -26,6 +28,13 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun citaDao(): CitaDao
 
     companion object {
+        // Conserva las citas canceladas, pero permite volver a reservar el horario liberado.
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("DROP INDEX IF EXISTS index_citas_especialistaId_fechaHoraInicio")
+                db.execSQL("CREATE INDEX index_citas_especialistaId_fechaHoraInicio ON citas(especialistaId, fechaHoraInicio)")
+            }
+        }
 
         // PATRÓN SINGLETON: garantizamos que exista UNA sola instancia de la base de datos
         // en toda la app. Crear una instancia de Room es costoso (abre el archivo SQLite,
@@ -53,6 +62,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "sanaesencia_db" // nombre del archivo .db en el dispositivo
                 )
+                    .addMigrations(MIGRATION_1_2)
                     .build()
                     .also { INSTANCE = it } // se guarda para que las próximas llamadas la reutilicen
             }

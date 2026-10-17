@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.sanaesencia.ui.theme.SanaesenciaTheme
+import com.example.sanaesencia.ui.components.SanaPrimaryButton as Button
 
 @Composable
 fun RegistroScreen(

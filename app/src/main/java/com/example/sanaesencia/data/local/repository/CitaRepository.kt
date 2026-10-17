@@ -10,6 +10,8 @@ import com.example.sanaesencia.domain.model.EstadoCita
 import com.example.sanaesencia.domain.model.Modalidad
 import com.example.sanaesencia.domain.model.Resultado
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import com.example.sanaesencia.domain.model.HorariosAgenda
 
 class CitaRepository(
     private val db: AppDatabase,
@@ -44,6 +46,11 @@ class CitaRepository(
         val servicio = servicioDao.obtenerPorId(servicioId)?.takeIf { it.activo }
             ?: return@withTransaction Resultado.Error(ErrorAgenda.ServicioNoDisponible)
 
+        if (fechaHoraInicio - ahora() < HorariosAgenda.ANTICIPACION_MS)
+            return@withTransaction Resultado.Error(ErrorAgenda.AnticipacionInsuficiente)
+        if (!HorariosAgenda.esBloqueValido(fechaHoraInicio, servicio.duracionMin))
+            return@withTransaction Resultado.Error(ErrorAgenda.HorarioFueraAtencion)
+
         especialistaDao.obtenerPorId(especialistaId)?.takeIf { it.activo }
             ?: return@withTransaction Resultado.Error(ErrorAgenda.EspecialistaNoDisponible)
 
@@ -72,22 +79,23 @@ class CitaRepository(
         try {
             Resultado.Exito(citaDao.insertar(cita))
         } catch (e: SQLiteConstraintException) {
-            // Red de seguridad: el índice único (especialistaId, fechaHoraInicio) rechazó el insert.
-            // Las FK ya se validaron arriba, por lo que aquí significa "horario ya tomado".
+            // Las validaciones y la inserción se mantienen dentro de la misma transacción.
             Resultado.Error(ErrorAgenda.HorarioOcupado)
         }
     }
 
-    suspend fun cancelar(citaId: Long): Resultado<Unit> {
+    suspend fun cancelar(citaId: Long): Resultado<Unit> = db.withTransaction {
         val cita = citaDao.obtenerDetallePorId(citaId)?.cita
-            ?: return Resultado.Error(ErrorAgenda.CitaNoEncontrada)
+            ?: return@withTransaction Resultado.Error(ErrorAgenda.CitaNoEncontrada)
 
         if (cita.estado != EstadoCita.PROGRAMADA) {
-            return Resultado.Error(ErrorAgenda.EstadoInvalido)
+            return@withTransaction Resultado.Error(ErrorAgenda.EstadoInvalido)
         }
+        if (cita.fechaHoraInicio - ahora() < HorariosAgenda.ANTICIPACION_MS)
+            return@withTransaction Resultado.Error(ErrorAgenda.CambioFueraPlazo)
 
         citaDao.actualizarEstado(citaId, EstadoCita.CANCELADA, ahora())
-        return Resultado.Exito(Unit)
+        Resultado.Exito(Unit)
     }
     // Obtiene una cita específica para cargarla en la pantalla de edición
     suspend fun obtenerDetallePorId(citaId: Long): CitaConDetalle? {
@@ -101,6 +109,12 @@ class CitaRepository(
 
         if (cita.estado != EstadoCita.PROGRAMADA) return@withTransaction Resultado.Error(ErrorAgenda.EstadoInvalido)
         if (nuevaFechaHora <= ahora()) return@withTransaction Resultado.Error(ErrorAgenda.FechaPasada)
+        if (cita.fechaHoraInicio - ahora() < HorariosAgenda.ANTICIPACION_MS)
+            return@withTransaction Resultado.Error(ErrorAgenda.CambioFueraPlazo)
+        if (nuevaFechaHora - ahora() < HorariosAgenda.ANTICIPACION_MS)
+            return@withTransaction Resultado.Error(ErrorAgenda.AnticipacionInsuficiente)
+        if (!HorariosAgenda.esBloqueValido(nuevaFechaHora, cita.duracionMin))
+            return@withTransaction Resultado.Error(ErrorAgenda.HorarioFueraAtencion)
 
         val fin = nuevaFechaHora + cita.duracionMin * 60_000L
         val traslapes = citaDao.buscarTraslapes(cita.especialistaId, nuevaFechaHora, fin)
@@ -112,5 +126,19 @@ class CitaRepository(
 
         citaDao.actualizar(cita.copy(fechaHoraInicio = nuevaFechaHora, actualizadaEn = ahora()))
         Resultado.Exito(Unit)
+    }
+
+    fun observarHorariosDisponibles(
+        dia: Long, especialistaId: Long, duracionMin: Int, citaEditandoId: Long? = null
+    ): Flow<List<Long>> = citaDao.observarOcupacion(
+        especialistaId, HorariosAgenda.inicioDia(dia), HorariosAgenda.siguienteDia(dia)
+    ).map { citas ->
+        HorariosAgenda.bloquesDelDia(dia, duracionMin).filter { inicio ->
+            val fin = inicio + duracionMin * 60_000L
+            inicio - ahora() >= HorariosAgenda.ANTICIPACION_MS && citas.none {
+                it.id != citaEditandoId && it.fechaHoraInicio < fin &&
+                    it.fechaHoraInicio + it.duracionMin * 60_000L > inicio
+            }
+        }
     }
 }

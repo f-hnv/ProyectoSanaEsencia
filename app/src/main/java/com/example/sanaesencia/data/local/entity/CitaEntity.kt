@@ -27,7 +27,7 @@ import com.example.sanaesencia.domain.model.Modalidad
         Index("servicioId"),
         Index("especialistaId"),
         Index("emailPaciente"),
-        Index(value = ["especialistaId", "fechaHoraInicio"], unique = true)
+        Index(value = ["especialistaId", "fechaHoraInicio"])
     ]
 )
 data class CitaEntity(

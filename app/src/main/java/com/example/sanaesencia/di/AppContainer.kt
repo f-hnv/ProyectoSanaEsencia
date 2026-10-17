@@ -11,6 +11,10 @@ import com.example.sanaesencia.nativo.LocationHelper
 // Inyección manual de dependencias: un único lugar donde se construyen los objetos
 // compartidos de la app (BD, repositorios y recursos nativos), sin librerías externas como Hilt.
 class AppContainer(context: Context) {
+    private val appContext = context.applicationContext
+    val emailPacienteActual: String?
+        get() = appContext.getSharedPreferences("sanaesencia_prefs", Context.MODE_PRIVATE)
+            .getString("email_sesion", null)
     val database: AppDatabase = AppDatabase.getInstance(context)
 
     val servicioRepository = ServicioRepository(database.servicioDao())

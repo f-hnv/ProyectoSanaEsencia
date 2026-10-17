@@ -24,6 +24,8 @@ class LoginViewModel : ViewModel() {
 
     private val _cargando = mutableStateOf(false)
     val cargando: State<Boolean> = _cargando
+    private val _accesoConcedido = mutableStateOf(false)
+    val accesoConcedido: State<Boolean> = _accesoConcedido
 
     fun onEmailChange(newEmail: String) {
         _email.value = newEmail
@@ -67,11 +69,9 @@ class LoginViewModel : ViewModel() {
             !_cargando.value) {
 
             _cargando.value = true
+            _accesoConcedido.value = false
 
             viewModelScope.launch {
-                // Simulamos el tiempo de carga
-                delay(1500)
-
                 // Leemos los datos guardados en el registro
                 val sharedPref = context.getSharedPreferences("sanaesencia_prefs", Context.MODE_PRIVATE)
                 val emailGuardado = sharedPref.getString("email_registrado", null)
@@ -79,6 +79,10 @@ class LoginViewModel : ViewModel() {
 
                 // Validación estricta
                 if (emailGuardado == _email.value && passwordGuardada == _password.value) {
+                    sharedPref.edit().putString("email_sesion", emailGuardado).apply()
+                    // La confirmación visual aparece solo después de verificar las credenciales.
+                    _accesoConcedido.value = true
+                    delay(900)
                     _cargando.value = false
                     onSuccess()
                 } else if (emailGuardado == null) {

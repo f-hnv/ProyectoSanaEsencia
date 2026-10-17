@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Location
 import android.location.LocationManager
+import android.os.SystemClock
 import androidx.core.content.ContextCompat
 import androidx.core.location.LocationManagerCompat
 import androidx.core.os.CancellationSignal
@@ -29,7 +30,13 @@ sealed interface UbicacionResultado {
  * Acceso al GPS del dispositivo. No muestra diálogos (eso es de la UI): solo verifica permisos,
  * valida que la ubicación esté activada y obtiene una lectura puntual de forma segura.
  */
-class LocationHelper(context: Context) {
+interface ProveedorUbicacion {
+    val permisosRequeridos: Array<String>
+    fun tienePermiso(): Boolean
+    suspend fun obtenerUbicacionActual(): UbicacionResultado
+}
+
+class LocationHelper(context: Context) : ProveedorUbicacion {
 
     // applicationContext: el helper vive en el AppContainer (toda la app); retener un Activity
     // provocaría una fuga de memoria.
@@ -38,13 +45,13 @@ class LocationHelper(context: Context) {
         appContext.getSystemService(Context.LOCATION_SERVICE) as LocationManager
 
     /** Se piden ambos juntos: desde Android 12 el usuario puede elegir ubicación precisa o aproximada. */
-    val permisosRequeridos: Array<String> = arrayOf(
+    override val permisosRequeridos: Array<String> = arrayOf(
         Manifest.permission.ACCESS_FINE_LOCATION,
         Manifest.permission.ACCESS_COARSE_LOCATION
     )
 
     /** true si el usuario concedió al menos uno de los dos permisos. */
-    fun tienePermiso(): Boolean =
+    override fun tienePermiso(): Boolean =
         concedido(Manifest.permission.ACCESS_FINE_LOCATION) ||
                 concedido(Manifest.permission.ACCESS_COARSE_LOCATION)
 
@@ -64,7 +71,7 @@ class LocationHelper(context: Context) {
         else -> null
     }
 
-    suspend fun obtenerUbicacionActual(): UbicacionResultado {
+    override suspend fun obtenerUbicacionActual(): UbicacionResultado {
         if (!tienePermiso()) return UbicacionResultado.SinPermiso
         if (!LocationManagerCompat.isLocationEnabled(locationManager)) {
             return UbicacionResultado.UbicacionDesactivada
@@ -75,7 +82,11 @@ class LocationHelper(context: Context) {
         val ubicacion = withTimeoutOrNull(TIMEOUT_MS) { solicitarUbicacion(proveedor) }
             ?: ultimaConocida(proveedor)
 
-        return ubicacion?.let {
+        // Nunca presentar una posición antigua como si fuera la ubicación actual.
+        return ubicacion?.takeIf {
+            val edad = SystemClock.elapsedRealtimeNanos() - it.elapsedRealtimeNanos
+            edad in 0..120_000_000_000L
+        }?.let {
             UbicacionResultado.Exito(
                 latitud = it.latitude,
                 longitud = it.longitude,
