@@ -1,78 +1,201 @@
 # Sanaesencia
 
-Prototipo académico Android para consultar servicios, reservar sesiones y orientar la llegada al Centro Integrativo Sanaesencia de Los Vilos.
+Aplicación Android de demostración para consultar servicios, reservar sesiones y orientar la llegada al Centro Integrativo Sanaesencia de Los Vilos. Desarrollada como proyecto académico de **DSY1105 — Desarrollo de Aplicaciones Móviles**, Evaluación Parcial 2.
 
-## Equipo
+## Integrantes
 
-Grupo 4:
+**Grupo 4**
 
 - Felipe Andres Araya Henriquez
 - Antonia Sofia Munoz Pizarro
 
-## Funcionalidades
+## Objetivo
 
-- Registro e inicio de sesión local de demostración.
-- Bienvenida animada tras validar las credenciales y reservas vinculadas al correo de la sesión activa.
-- Pantalla “Contáctanos” desde Inicio y Login, con el WhatsApp publicado por el centro y alternativa de apertura en el navegador.
-- Catálogo de servicios y selección de profesionales activos con su especialidad.
-- Reserva por selección de día y botones de horas disponibles, sin escribir fechas ni horas.
-- Horario configurado para el prototipo: lunes a viernes, 09:00–18:00, almuerzo 13:00–14:00 e inicios cada hora, en la zona `America/Santiago`.
-- Disponibilidad según especialista y duración del servicio; exclusión de traslapes y anticipación mínima de 12 horas.
-- Modalidad presencial u online cuando el servicio lo admite, con resumen antes de confirmar.
-- Reprogramación conservando el servicio, profesional y modalidad originales; cancelación con 12 horas de anticipación.
-- Persistencia en Room y actualización automática de horas ocupadas o liberadas.
-- Pantalla “Cómo llegar”: permiso de ubicación, distancia aproximada en línea recta, estados de error y apertura del destino en una aplicación de mapas.
-- Pantalla de perfil con solicitud de permiso de cámara, manejo de permiso denegado y selector de fotografías. La captura y el GPS en un teléfono físico siguen pendientes de comprobación.
-- Transiciones entre pantallas y aparición animada del resumen de la reserva.
-- Botones compartidos con bordes en salvia y celeste, iconos y estados de selección diferenciados por borde, fondo e indicador.
+Facilitar la reserva de una sesión mediante un flujo guiado: elegir servicio, especialista, modalidad, día y una hora disponible. La aplicación incorpora validaciones, almacenamiento local y recursos del dispositivo para apoyar la experiencia del paciente.
 
-## Arquitectura
+Es un prototipo académico con datos ficticios; las reservas no se comunican con el centro real.
 
-Kotlin, Jetpack Compose, Material 3 y MVVM, con inyección manual en `AppContainer` y `ViewModelFactory`. La política horaria se concentra en `HorariosAgenda`, la disponibilidad y la confirmación atómica en `CitaRepository`, y el estado de la agenda en `AgendaViewModel`.
+## Funcionalidades implementadas
 
-La guía `docs/ARQUITECTURA.md` explica las carpetas, la función de las clases principales y los flujos de reserva y ubicación para la presentación del proyecto.
+| Área | Funcionalidad |
+| --- | --- |
+| Registro y acceso | Formularios con mensajes por campo, confirmación de contraseña e inicio de sesión local. |
+| Inicio | Saludo al paciente, próximas sesiones y accesos al catálogo, agenda, perfil, ubicación y contacto. |
+| Catálogo | Consulta de servicios, descripción, duración, precio de demostración y acceso a la reserva. |
+| Agenda | Selección de profesional con su especialidad, modalidad, día y botones de horas disponibles; resumen antes de confirmar. |
+| Gestión de citas | Reserva, cancelación y reprogramación; disponibilidad que se actualiza al ocupar o liberar una hora. |
+| Ubicación | Solicitud de permiso, lectura del GPS, distancia aproximada en línea recta y apertura de la sede en una aplicación de mapas. |
+| Perfil | Captura de foto con cámara, selección desde galería y manejo de permiso denegado. |
+| Contacto | Apertura de WhatsApp con un texto editable y alternativa de navegador; el usuario decide si envía el mensaje. |
+| Diseño e interacción | Material 3, paleta salvia y celeste, botones compartidos con borde y estados seleccionados, bienvenida animada y transiciones. |
 
-Room usa la versión 2 del esquema. La migración 1→2 conserva los registros y cambia el índice de horarios para permitir reutilizar una hora cancelada. Los traslapes se siguen verificando dentro de transacciones.
+### Reglas de agenda
 
-## Ejecutar
+- Atención del prototipo: **lunes a viernes de 09:00 a 18:00**, con almuerzo de **13:00 a 14:00**, en la zona `America/Santiago`.
+- Se eligen bloques con inicio cada hora; el paciente no escribe la fecha ni la hora manualmente.
+- La disponibilidad considera el especialista, la duración del servicio, el cierre de atención, el almuerzo y las citas vigentes.
+- Se requieren al menos **12 horas de anticipación** para reservar, cancelar o reprogramar.
+- La confirmación comprueba los traslapes dentro de una transacción Room.
+- Una hora cancelada puede volver a reservarse.
+- La modalidad online está disponible cuando el servicio la admite.
+- La reprogramación conserva el servicio, el profesional y la modalidad originales.
 
-1. Abrir la carpeta del proyecto en Android Studio o en un IDE con soporte Android.
-2. Sincronizar Gradle y disponer del SDK de Android API 37. La configuración del daemon del repositorio solicita JDK 25.
-3. Conectar un dispositivo o iniciar un emulador compatible con Android API 24 o superior.
-4. Ejecutar el módulo `app`. Para probar el flujo desde Inicio, registrar una cuenta ficticia e iniciar sesión.
-5. Elegir **Agenda → servicio → especialista → modalidad → día → hora**. Revisar el resumen y confirmar.
-6. Abrir **Cómo llegar** desde Inicio o desde el resumen de una reserva presencial para probar la ubicación.
+## Tecnologías y arquitectura
 
-Compilación y pruebas locales:
+- **Kotlin**, **Jetpack Compose** y **Material Design 3**.
+- **MVVM**, ViewModel, coroutines y Flow para el estado y la actualización de la interfaz.
+- **Room / SQLite** para servicios, especialistas y citas.
+- **SharedPreferences** para la cuenta y la sesión local de demostración.
+- **Navigation Compose** para la navegación.
+- Inyección manual de dependencias mediante `AppContainer` y `ViewModelFactory`.
+- API de ubicación de Android, permisos en tiempo de ejecución, cámara con `FileProvider` y selector de fotografías.
 
-```powershell
-.\gradlew.bat :app:assembleDebug :app:testDebugUnitTest
+Flujo principal de datos:
+
+```text
+Pantalla Compose → ViewModel → Repositorio → DAO → Room
+                       ↑                       |
+                       └──── actualizaciones ──┘
 ```
 
-Pruebas de agenda en un dispositivo o emulador conectado:
+La política horaria se concentra en `HorariosAgenda`; la disponibilidad y las operaciones atómicas, en `CitaRepository`; y la selección del paciente, en `AgendaViewModel`.
+
+Room utiliza el esquema **versión 2**. La migración 1 → 2 conserva los datos y modifica el índice de horarios para permitir nuevas reservas sobre citas canceladas, manteniendo la validación de traslapes en las transacciones.
+
+### Organización del código
+
+Dentro de `app/src/main/java/com/example/sanaesencia/`:
+
+| Carpeta | Responsabilidad |
+| --- | --- |
+| `ui/` | Pantallas agrupadas por funcionalidad. |
+| `ui/components/` y `ui/theme/` | Controles compartidos, colores, tipografía y tema. |
+| `viewmodel/` | Estado, validaciones y acciones de las pantallas. |
+| `navigation/` | Rutas y navegación. |
+| `data/repository/` | Acceso y coordinación de operaciones sobre los datos. |
+| `data/local/` | Base Room, entidades, DAO, relaciones y datos iniciales. |
+| `domain/` | Reglas horarias, modelos e indicadores de continuidad. |
+| `nativo/` | Proveedor de ubicación. |
+| `di/` y `utils/` | Dependencias y funciones auxiliares. |
+
+Consultar la [guía de arquitectura](docs/ARQUITECTURA.md) para revisar las clases principales y los flujos de reserva y ubicación.
+
+## Requisitos para ejecutar
+
+- Android Studio con soporte para la configuración Gradle incluida en este repositorio.
+- **Android SDK API 37** instalado desde SDK Manager.
+- **JDK 25** para el daemon de Gradle, según `gradle/gradle-daemon-jvm.properties`.
+- Emulador o dispositivo con **Android API 24 o superior**.
+- Conexión a internet para la primera sincronización y descarga de dependencias.
+
+Se incluye **Gradle Wrapper 9.6.0**; no es necesario instalar Gradle por separado. La compatibilidad Java del código está configurada en Java 11, que es una configuración distinta del JDK utilizado por el daemon.
+
+### Instalación y ejecución
+
+1. Clonar este repositorio o descargar y descomprimir su código fuente.
+2. En Android Studio, elegir **File → Open** y seleccionar la carpeta que contiene `settings.gradle.kts`, `gradlew.bat` y `app/`.
+3. Revisar la ruta del SDK local y sincronizar Gradle. El archivo `local.properties` depende de cada computador y no se versiona.
+4. Iniciar un emulador o conectar un dispositivo compatible.
+5. Seleccionar el módulo **app** y pulsar **Run**.
+
+Para compilar desde PowerShell, en la raíz del proyecto:
 
 ```powershell
-.\gradlew.bat :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.sanaesencia.AgendaEspecialistasTest
+.\gradlew.bat :app:assembleDebug
 ```
 
-La clase `GpsLecturaTest` comprueba el proveedor nativo y necesita una señal reciente. En el emulador se debe simular una ubicación durante la prueba; por ejemplo, desde sus controles extendidos de ubicación. Las pruebas de estados GPS usan un proveedor controlado para comprobar permisos denegados, ubicación desactivada, ausencia de señal y cálculo de distancia.
+El APK de pruebas se genera en `app/build/outputs/apk/debug/app-debug.apk`. Es una compilación debug para demostración, no una publicación en una tienda.
 
-## Alcance y entrega
+## Recorrido de demostración
 
-Los datos de servicios, profesionales y citas son ficticios. Los horarios y precios del prototipo no representan disponibilidad ni tarifas reales del centro. Las reservas se guardan localmente: no se envían al centro, a MEDIlink ni a un servidor. El inicio de sesión es una demostración local, no una autenticación de producción.
+1. Abrir **Registro** y crear una cuenta ficticia. Se aceptan correos terminados en `@duoc.cl`, `@profesor.duoc.cl`, `@gmail.com` o `@hotmail.com`; la contraseña requiere al menos seis caracteres y confirmación coincidente.
+2. Iniciar sesión con esa misma cuenta y observar la bienvenida animada. No existe una cuenta de acceso predefinida.
+3. Desde **Agenda**, elegir servicio, especialista, modalidad, día y una hora disponible. Revisar el resumen y confirmar.
+4. Volver a **Inicio** para consultar la cita y probar la cancelación o reprogramación respetando las 12 horas de anticipación.
+5. Abrir **Cómo llegar**, conceder ubicación y comprobar la distancia. En un emulador debe simularse una ubicación; también se pueden revisar los estados de permiso denegado y GPS desactivado.
+6. Abrir **Perfil** y probar cámara o galería. Si se deniega el permiso de cámara, se mantiene la alternativa de galería.
+7. Abrir **Contáctanos** para comprobar el enlace externo. La aplicación no envía mensajes automáticamente.
 
-El sitio del centro se utilizó como referencia de contexto: https://centrosanaesencia.cl/. La implementación conserva las reglas acordadas para el proyecto académico.
+Los datos de ejemplo se cargan cuando la tabla de servicios está vacía. Las citas iniciales pertenecen a pacientes ficticios y no equivalen a credenciales de acceso; cada nueva reserva se asocia al correo de la sesión activa.
 
-## Documentación de Semana 9
+## Pruebas y verificación
 
-La carpeta `docs/semana9` contiene acta de reunión, mockup, backlog priorizado y diseño de interfaces en PDF, sus versiones Markdown editables y capturas del prototipo. El acta registra la reunión del 24/09/2026 a las 20:15; el diseño continúa pendiente de respuesta y validación del cliente.
-
-Las capturas se pueden regenerar de forma opcional en el emulador con datos ficticios:
+### Compilación, pruebas unitarias y análisis estático
 
 ```powershell
-.\gradlew.bat :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.sanaesencia.CapturasDisenoTest -Pandroid.testInstrumentationRunnerArguments.capturas=true
+.\gradlew.bat :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
 ```
 
-Se guardan dentro del emulador en `Download/sanaesencia-*.png`. Esta tarea captura pantallas sin confirmar reservas ni enviar mensajes.
+### Pruebas funcionales en Android
 
-Antes de entregar se debe completar el equipo, verificar cámara y GPS en el dispositivo de defensa y revisar las evidencias de trabajo de ambos integrantes en GitHub y Trello. La integración REST, las notificaciones y la planificación de boxes descritas en el caso general no se implementan en esta mejora de agenda.
+Con un emulador o dispositivo conectado:
+
+```powershell
+.\gradlew.bat :app:connectedDebugAndroidTest '-Pandroid.testInstrumentationRunnerArguments.notClass=com.example.sanaesencia.CapturasDisenoTest'
+```
+
+Esta ejecución excluye las capturas opcionales. `GpsLecturaTest` necesita una lectura GPS reciente: en el emulador se debe proporcionar una ubicación desde sus controles extendidos durante la prueba. Las pruebas de estados utilizan además un proveedor controlado para comprobar errores y cálculo de distancia.
+
+**Última verificación: 18/10/2026**
+
+- Compilación debug y compilación de pruebas Android: correctas.
+- **5 pruebas unitarias aprobadas** y **13 pruebas funcionales aprobadas en emulador**, sin fallos en esa ejecución.
+- Cobertura funcional de pruebas: selección y persistencia del especialista, disponibilidad, reutilización de horas canceladas, migración Room, acceso, contacto, permiso de cámara denegado y ubicación.
+- Análisis estático: **0 errores y 31 advertencias** de mantenimiento, recursos y dependencias.
+- La captura con cámara y el GPS en un teléfono físico **siguen pendientes de comprobación**. Las pruebas de emulador no sustituyen esa revisión.
+
+### Capturas opcionales
+
+Para generar evidencia visual con datos ficticios:
+
+```powershell
+.\gradlew.bat :app:connectedDebugAndroidTest '-Pandroid.testInstrumentationRunnerArguments.class=com.example.sanaesencia.CapturasDisenoTest' '-Pandroid.testInstrumentationRunnerArguments.capturas=true'
+```
+
+Las imágenes se guardan en el emulador, en `Download/sanaesencia-*.png`. Estas pruebas no confirman reservas ni envían mensajes. Deben ejecutarse por separado con el argumento `capturas=true`; sin él, el generador se omite por una condición de JUnit que el reporte utilizado puede mostrar como fallo.
+
+## Evidencia visual
+
+Capturas del prototipo de Semana 9:
+
+| Acceso | Reserva |
+| --- | --- |
+| ![Pantalla de acceso](docs/semana9/login.png) | ![Selección de especialista y horario](docs/semana9/agenda.png) |
+
+También están disponibles las capturas de [inicio](docs/semana9/inicio.png), [resumen de reserva](docs/semana9/resumen.png) y [contacto](docs/semana9/contacto.png).
+
+## Documentación y planificación
+
+| Documento | Contenido |
+| --- | --- |
+| [Acta de reunión](docs/semana9/01_Acta_reunion_cliente.pdf) | Reunión del 24/09/2026 a las 20:15 y asuntos pendientes de validación. |
+| [Mockup](docs/semana9/02_Mockup_Sanaesencia.pdf) | Propuesta de pantallas y recorrido del paciente. |
+| [Backlog priorizado](docs/semana9/03_Backlog_priorizado.pdf) | Funcionalidades y prioridades del proyecto. |
+| [Diseño de interfaces](docs/semana9/04_Diseno_interfaces.pdf) | Criterios visuales, controles y evidencia de pantallas. |
+| [Guía del tablero](docs/semana9/LEEME_PARA_EL_TABLERO.md) | Orientación para organizar la evidencia de Semana 9. |
+
+La carpeta [docs/semana9](docs/semana9) incluye también versiones Markdown editables. El diseño fue enviado y continúa pendiente de respuesta y aprobación del cliente. El backlog documentado no sustituye la evidencia de tareas compartidas en Trello o una herramienta equivalente.
+
+## Alcance y limitaciones
+
+- Los servicios, profesionales, pacientes y citas iniciales son ficticios. Los precios y horarios no representan tarifas ni disponibilidad real del centro.
+- Las reservas se guardan en el dispositivo con Room. No existe sincronización entre dispositivos ni envío a un servidor, al centro o a MEDIlink.
+- El registro conserva una sola cuenta local de demostración en SharedPreferences; registrar otra reemplaza esa cuenta. Las credenciales se almacenan sin un mecanismo de autenticación de producción. Utilizar exclusivamente datos y contraseñas ficticios.
+- La foto de perfil se mantiene en el estado del ViewModel; no tiene persistencia permanente implementada.
+- La distancia mostrada es aproximada en línea recta, no una estimación de ruta o tiempo de viaje.
+- La integración REST, las notificaciones y la planificación de boxes del caso general no están implementadas. Existe lógica de indicadores de continuidad, pero no una pantalla de administración conectada a la navegación.
+- Abrir WhatsApp, el navegador o mapas depende de las aplicaciones disponibles y de la conectividad del dispositivo.
+
+El [sitio del centro](https://centrosanaesencia.cl/) se utilizó como referencia de contexto. Este repositorio corresponde a una solución académica y no a un sistema oficial de reservas.
+
+## Entrega académica
+
+De acuerdo con la pauta proporcionada para la Evaluación Parcial 2:
+
+1. Mantener el proyecto y este README en un repositorio público de GitHub, con acceso para el docente y el equipo.
+2. Disponer de la planificación y distribución de tareas en Trello o equivalente, junto con evidencia real de colaboración y commits descriptivos.
+3. Subir el código fuente al enlace **AVA grupal**, por un integrante del equipo.
+4. Activar el enlace **AVA individual** con nombre, apellido, número de equipo y nombre de la aplicación o contexto.
+5. Conservar la versión entregada: la pauta prohíbe modificar el repositorio después de la entrega y antes de la evaluación.
+
+La documentación describe lo implementado y las comprobaciones realizadas; la calificación depende de la revisión del docente y de las evidencias solicitadas.
