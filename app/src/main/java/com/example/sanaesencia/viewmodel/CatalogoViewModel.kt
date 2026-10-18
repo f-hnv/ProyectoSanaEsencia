@@ -22,7 +22,7 @@ import kotlinx.coroutines.flow.stateIn
  * @property categorias           categorías disponibles → chips/tabs de filtro.
  * @property categoriaSeleccionada categoría activa; null = "Todas".
  * @property servicios            servicios ya filtrados por la categoría activa → LazyColumn.
- * @property especialistas        especialistas activos → pantalla "Especialistas".
+ * @property especialistas        especialistas activos incluidos en el estado del catálogo.
  * @property error                mensaje si falló la carga; null si todo bien.
  */
 data class CatalogoUiState(
@@ -35,21 +35,8 @@ data class CatalogoUiState(
 )
 
 /**
- * ═══ CONTRATO PARA LA UI (Compose) ═══
- *
- * OBSERVAR (un único StateFlow):
- *   val estado by catalogoVm.uiState.collectAsStateWithLifecycle()
- *   // requiere androidx.lifecycle:lifecycle-runtime-compose
- *   when {
- *       estado.cargando -> /* CircularProgressIndicator */
- *       estado.error != null -> /* mensaje de error */
- *       else -> /* estado.servicios, estado.especialistas */
- *   }
- *
- * EVENTOS (funciones que la UI llama):
- *   seleccionarCategoria(categoria: String?)  // null = mostrar todas
- *
- * La lista se actualiza sola (Room emite con Flow); no hay que "refrescar" a mano.
+ * Combina servicios, categorías y especialistas en un único estado observable.
+ * El filtro de categoría cambia la consulta y Room notifica las actualizaciones de datos.
  */
 class CatalogoViewModel(
     servicioRepository: ServicioRepository,

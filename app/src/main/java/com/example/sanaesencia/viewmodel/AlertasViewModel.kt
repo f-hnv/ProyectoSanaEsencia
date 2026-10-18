@@ -31,19 +31,8 @@ data class AlertasUiState(
 )
 
 /**
- * ═══ CONTRATO PARA LA UI (vista de Administración) ═══
- *
- * OBSERVAR:
- *   val estado by alertasVm.uiState.collectAsStateWithLifecycle()
- *   estado.conteoPorNivel[NivelRiesgo.ALTO]   // contador para un chip o tarjeta
- *   estado.alertas.forEach { /* it.emailPaciente, it.nivel, it.puntaje, it.motivos */ }
- *
- * EVENTOS:
- *   filtrarPorNivel(nivel: NivelRiesgo?)   // null = mostrar todos
- *
- * Se actualiza sola cuando cambia cualquier cita. Los días sin atención se recalculan cada vez
- * que la pantalla se vuelve a mostrar.
- * TODO(login): restringir esta pantalla al rol administrador cuando exista autenticación.
+ * Filtra las alertas de continuidad de tratamiento y expone sus contadores por nivel de riesgo.
+ * Esta lógica aún no tiene una pantalla de administración conectada a la navegación.
  */
 class AlertasViewModel(alertasRepository: AlertasRepository) : ViewModel() {
 

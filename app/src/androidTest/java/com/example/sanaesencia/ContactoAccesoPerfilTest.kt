@@ -20,7 +20,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.example.sanaesencia.domain.model.ContactoSanaesencia
 import com.example.sanaesencia.ui.contacto.ContactoScreen
 import com.example.sanaesencia.ui.login.LoginScreen
-import com.example.sanaesencia.ui.login.LoginViewModel
+import com.example.sanaesencia.viewmodel.LoginViewModel
 import com.example.sanaesencia.ui.perfil.PerfilScreen
 import com.example.sanaesencia.ui.theme.SanaesenciaTheme
 import kotlinx.coroutines.cancelAndJoin

@@ -18,29 +18,28 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.sanaesencia.data.local.entity.ServicioEntity
 import com.example.sanaesencia.ui.theme.SanaesenciaTheme
 
-// Importaciones de tu backend (Ajusta estas 3 líneas si tus carpetas se llaman distinto)
 import com.example.sanaesencia.viewmodel.CatalogoViewModel
 import com.example.sanaesencia.viewmodel.ViewModelFactory
 
-// 1. PANTALLA PRINCIPAL CONECTADA (Cerebro)
+/** Conecta el estado del catálogo con la interfaz y entrega los eventos de navegación. */
 @Composable
 fun CatalogoScreen(
     onNavigateBack: () -> Unit,
     onNavigateToAgenda: (Long) -> Unit
 ) {
-    // 1. Obtenemos el contenedor de tu aplicación
+    // El contenedor comparte los repositorios y la base de datos durante la ejecución de la app.
     val context = androidx.compose.ui.platform.LocalContext.current
     val app = context.applicationContext as com.example.sanaesencia.SanaesenciaApp
     val factory = com.example.sanaesencia.viewmodel.ViewModelFactory(app.container)
 
-    // 2. Inyectamos el ViewModel usando tu fábrica
+    // La fábrica construye el ViewModel con sus dependencias, sin consultar Room desde la vista.
     val viewModel: CatalogoViewModel = viewModel(factory = factory)
 
-    // 3. Recolectamos la lista de la base de datos de Room en tiempo real
+    // StateFlow publica las actualizaciones del catálogo para que Compose recomponga la lista.
     val estado by viewModel.uiState.collectAsState()
     val listaServicios = estado.servicios
 
-    // Pasamos los datos reales al diseño visual
+    // El componente visual recibe datos y callbacks; no depende del acceso a la base de datos.
     CatalogoContent(
         listaServicios = listaServicios,
         onNavigateBack = onNavigateBack,
@@ -48,7 +47,7 @@ fun CatalogoScreen(
     )
 }
 
-// 2. DISEÑO VISUAL (Maqueta de Antonia)
+/** Renderiza los servicios y comunica la selección del servicio a la navegación. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CatalogoContent(
@@ -100,7 +99,7 @@ fun CatalogoContent(
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            // Asumiendo que precio es Int en tu entidad. Si es String, quita el "$" extra
+                            // precioClp almacena el valor del servicio en pesos chilenos.
                             text = "$${servicio.precioClp}",
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.primary
@@ -112,7 +111,7 @@ fun CatalogoContent(
     }
 }
 
-// 3. PREVIEW (Mantiene datos falsos solo para previsualizar el diseño en Android Studio)
+// La vista previa utiliza ejemplos locales y no necesita abrir Room.
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun CatalogoScreenPreview() {

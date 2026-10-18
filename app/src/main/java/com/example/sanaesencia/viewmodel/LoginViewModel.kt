@@ -1,4 +1,4 @@
-package com.example.sanaesencia.ui.login
+package com.example.sanaesencia.viewmodel
 
 import android.content.Context
 import androidx.compose.runtime.State
@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+/** Gestiona la validación del acceso, la sesión local y el estado de la bienvenida. */
 class LoginViewModel : ViewModel() {
 
     private val _email = mutableStateOf("")
@@ -72,12 +73,12 @@ class LoginViewModel : ViewModel() {
             _accesoConcedido.value = false
 
             viewModelScope.launch {
-                // Leemos los datos guardados en el registro
+                // El acceso local compara las credenciales con la cuenta guardada en el registro.
                 val sharedPref = context.getSharedPreferences("sanaesencia_prefs", Context.MODE_PRIVATE)
                 val emailGuardado = sharedPref.getString("email_registrado", null)
                 val passwordGuardada = sharedPref.getString("password_registrada", null)
 
-                // Validación estricta
+                // Solo una coincidencia de correo y contraseña crea la sesión del paciente.
                 if (emailGuardado == _email.value && passwordGuardada == _password.value) {
                     sharedPref.edit().putString("email_sesion", emailGuardado).apply()
                     // La confirmación visual aparece solo después de verificar las credenciales.

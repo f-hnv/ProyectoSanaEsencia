@@ -18,6 +18,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.sanaesencia.viewmodel.RegistroViewModel
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.sanaesencia.ui.theme.SanaesenciaTheme
 import com.example.sanaesencia.ui.components.SanaPrimaryButton as Button
@@ -28,7 +29,7 @@ fun RegistroScreen(
     viewModel: RegistroViewModel = viewModel()
 ) {
     val scrollState = rememberScrollState()
-    // 1. OBTENEMOS EL CONTEXTO AQUÍ
+    // El contexto permite al ViewModel guardar los datos de registro del prototipo local.
     val context = LocalContext.current
 
     Column(
@@ -104,7 +105,7 @@ fun RegistroScreen(
         Spacer(modifier = Modifier.height(32.dp))
 
         Button(
-            // 2. LE PASAMOS EL CONTEXTO A LA FUNCIÓN REGISTRAR
+            // El ViewModel valida los campos y guarda el registro antes de volver al acceso.
             onClick = { viewModel.registrar(context = context, onSuccess = onNavigateToLogin) },
             modifier = Modifier.fillMaxWidth().height(50.dp)
         ) {

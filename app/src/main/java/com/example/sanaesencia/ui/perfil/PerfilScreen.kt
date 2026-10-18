@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.sanaesencia.viewmodel.PerfilViewModel
 import coil.compose.rememberAsyncImagePainter
 import java.io.File
 import androidx.compose.ui.tooling.preview.Preview

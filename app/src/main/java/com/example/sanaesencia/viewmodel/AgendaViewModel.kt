@@ -30,7 +30,7 @@ sealed interface EstadoOperacion {
 }
 
 data class AgendaUiState(
-    val citaEditandoId: Long? = null, // NUEVO: Identificador de edición
+    val citaEditandoId: Long? = null, // Una cita existente activa la reprogramación; null representa una reserva nueva.
     val servicioSeleccionado: ServicioEntity? = null,
     val especialistaId: Long? = null,
     val especialistas: List<EspecialistaEntity> = emptyList(),
@@ -50,6 +50,7 @@ data class AgendaUiState(
     val todasLasCitas: List<CitaConDetalle> = emptyList()
 )
 
+/** Gestiona el formulario de reserva, observa la disponibilidad y delega la persistencia al repositorio. */
 class AgendaViewModel(
     private val citaRepository: CitaRepository,
     private val servicioRepository: ServicioRepository,
@@ -215,7 +216,7 @@ class AgendaViewModel(
         _uiState.update { it.copy(errores = ErroresFormularioAgenda(), operacion = EstadoOperacion.Cargando) }
 
         viewModelScope.launch {
-            // Decidimos dinámicamente si hacemos INSERT o UPDATE
+            // Una reserva nueva inserta una cita; la reprogramación actualiza la fecha de la cita existente.
             val resultado = if (actual.citaEditandoId != null) {
                 citaRepository.reprogramar(actual.citaEditandoId, fechaHora)
             } else {

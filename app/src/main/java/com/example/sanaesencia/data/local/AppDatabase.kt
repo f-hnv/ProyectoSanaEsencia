@@ -22,7 +22,7 @@ import com.example.sanaesencia.data.local.entity.ServicioEntity
 )
 abstract class AppDatabase : RoomDatabase() {
 
-    // Room generacion y  la implementación de cada DAO en tiempo de compilación (gracias a KSP).
+    // Room genera la implementación de los DAO durante la compilación mediante KSP.
     abstract fun servicioDao(): ServicioDao
     abstract fun especialistaDao(): EspecialistaDao
     abstract fun citaDao(): CitaDao

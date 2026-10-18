@@ -34,7 +34,7 @@ sealed class Rutas(val ruta: String) {
     object Home : Rutas("home")
     object CatalogoServicios : Rutas("catalogo_servicios")
 
-    // Ahora acepta servicioId y citaId para la edición
+    // Los argumentos distinguen una reserva de servicio de la reprogramación de una cita existente.
     object Agenda : Rutas("agenda?servicioId={servicioId}&citaId={citaId}") {
         fun crearRuta(servicioId: Long?, citaId: Long?) =
             "agenda?servicioId=${servicioId?.toString() ?: ""}&citaId=${citaId?.toString() ?: ""}"

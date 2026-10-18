@@ -30,6 +30,8 @@ Grupo 4:
 
 Kotlin, Jetpack Compose, Material 3 y MVVM, con inyección manual en `AppContainer` y `ViewModelFactory`. La política horaria se concentra en `HorariosAgenda`, la disponibilidad y la confirmación atómica en `CitaRepository`, y el estado de la agenda en `AgendaViewModel`.
 
+La guía `docs/ARQUITECTURA.md` explica las carpetas, la función de las clases principales y los flujos de reserva y ubicación para la presentación del proyecto.
+
 Room usa la versión 2 del esquema. La migración 1→2 conserva los registros y cambia el índice de horarios para permitir reutilizar una hora cancelada. Los traslapes se siguen verificando dentro de transacciones.
 
 ## Ejecutar

@@ -5,19 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import com.example.sanaesencia.data.local.seed.SeedData
 import com.example.sanaesencia.di.AppContainer
 
-/**
- * Construye los ViewModels inyectándoles las dependencias del AppContainer.
- * Android no sabe crear ViewModels con parámetros, por eso necesita esta fábrica.
- *
- * USO desde Compose:
- *   val container = (LocalContext.current.applicationContext as SanaesenciaApp).container
- *   val factory = remember { ViewModelFactory(container) }
- *   val catalogoVm: CatalogoViewModel = viewModel(factory = factory)
- *   val agendaVm: AgendaViewModel = viewModel(factory = factory)
- *   val sedeVm: SedeViewModel = viewModel(factory = factory)
- *
- * La sesión identifica al paciente; los datos demo se usan solo si no existe sesión (pruebas/vistas de desarrollo).
- */
+
 class ViewModelFactory(
     private val container: AppContainer,
     private val emailPaciente: String = container.emailPacienteActual ?: SeedData.EMAIL_DEMO

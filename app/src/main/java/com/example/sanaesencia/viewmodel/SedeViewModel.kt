@@ -22,7 +22,7 @@ sealed interface EstadoUbicacion {
     data class Exito(
         val latitud: Double,
         val longitud: Double,
-        val precisionM: Float?                          // si es alta (> ~100 m) mostrar "ubicación aproximada"
+        val precisionM: Float?                          // Radio de precisión informado por el proveedor, expresado en metros.
     ) : EstadoUbicacion
 }
 
@@ -38,36 +38,8 @@ data class SedeUiState(
 )
 
 /**
- * ═══ CONTRATO PARA LA UI (Compose) ═══
- *
- * DATOS ESTÁTICOS de la sede (no están en el estado): SedeSanaesencia.NOMBRE / DIRECCION / LATITUD / LONGITUD
- *
- * OBSERVAR:
- *   val estado by sedeVm.uiState.collectAsStateWithLifecycle()
- *   when (val e = estado.estado) {
- *       EstadoUbicacion.Cargando -> /* progreso */
- *       EstadoUbicacion.PermisoDenegado -> /* explicación + botón */
- *       EstadoUbicacion.UbicacionDesactivada -> /* pedir activar GPS */
- *       EstadoUbicacion.NoDisponible -> /* botón reintentar */
- *       is EstadoUbicacion.Exito -> Text("Estás a ${estado.distanciaTexto} de la sede")
- *       EstadoUbicacion.Inicial -> Unit
- *   }
- *
- * PERMISOS (el diálogo lo lanza la UI porque necesita la Activity):
- *   val launcher = rememberLauncherForActivityResult(
- *       ActivityResultContracts.RequestMultiplePermissions()
- *   ) { resultado -> sedeVm.onPermisoResultado(resultado.values.any { it }) }
- *
- *   LaunchedEffect(Unit) {
- *       if (sedeVm.tienePermiso()) sedeVm.actualizarUbicacion()
- *       else launcher.launch(sedeVm.permisosRequeridos)
- *   }
- *
- * EVENTOS (funciones que la UI llama):
- *   tienePermiso(): Boolean
- *   permisosRequeridos: Array<String>
- *   onPermisoResultado(concedido: Boolean)   // llamar desde el callback del launcher
- *   actualizarUbicacion()                    // botón "Reintentar" / "Actualizar" / volver de Ajustes
+ * Traduce los resultados del proveedor de ubicación a estados de pantalla y calcula la distancia a la sede.
+ * La vista solicita permisos; este ViewModel coordina la lectura y expone el resultado.
  */
 class SedeViewModel(private val locationHelper: ProveedorUbicacion) : ViewModel() {
 
