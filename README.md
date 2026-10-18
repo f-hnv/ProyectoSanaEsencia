@@ -188,14 +188,3 @@ La carpeta [docs/semana9](docs/semana9) incluye también versiones Markdown edit
 
 El [sitio del centro](https://centrosanaesencia.cl/) se utilizó como referencia de contexto. Este repositorio corresponde a una solución académica y no a un sistema oficial de reservas.
 
-## Entrega académica
-
-De acuerdo con la pauta proporcionada para la Evaluación Parcial 2:
-
-1. Mantener el proyecto y este README en un repositorio público de GitHub, con acceso para el docente y el equipo.
-2. Disponer de la planificación y distribución de tareas en Trello o equivalente, junto con evidencia real de colaboración y commits descriptivos.
-3. Subir el código fuente al enlace **AVA grupal**, por un integrante del equipo.
-4. Activar el enlace **AVA individual** con nombre, apellido, número de equipo y nombre de la aplicación o contexto.
-5. Conservar la versión entregada: la pauta prohíbe modificar el repositorio después de la entrega y antes de la evaluación.
-
-La documentación describe lo implementado y las comprobaciones realizadas; la calificación depende de la revisión del docente y de las evidencias solicitadas.
