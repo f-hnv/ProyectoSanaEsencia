@@ -13,8 +13,6 @@ Aplicación Android de demostración para consultar servicios, reservar sesiones
 
 Facilitar la reserva de una sesión mediante un flujo guiado: elegir servicio, especialista, modalidad, día y una hora disponible. La aplicación incorpora validaciones, almacenamiento local y recursos del dispositivo para apoyar la experiencia del paciente.
 
-Es un prototipo académico con datos ficticios; las reservas no se comunican con el centro real.
-
 ## Funcionalidades implementadas
 
 | Área | Funcionalidad |
