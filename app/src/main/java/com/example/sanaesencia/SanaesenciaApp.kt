@@ -18,9 +18,13 @@ class SanaesenciaApp : Application() {
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this)
+        com.example.sanaesencia.domain.model.ConfiguracionCentro.cargar(this)
 
         // Los datos demo se insertan en segundo plano.
-        appScope.launch { SeedData.poblarSiVacia(container.database) }
+        appScope.launch {
+            SeedData.poblarSiVacia(container.database)
+            com.example.sanaesencia.data.repository.CuentaRepository(this@SanaesenciaApp).prepararDemostracion()
+        }
 
 
 

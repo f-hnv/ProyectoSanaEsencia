@@ -16,6 +16,8 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,6 +60,7 @@ fun LoginScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
+        com.example.sanaesencia.ui.components.LogoSanaesencia(Modifier.fillMaxWidth().padding(bottom=20.dp))
         Text(
             text = "Sanaesencia",
             style = MaterialTheme.typography.titleLarge,
@@ -81,7 +84,7 @@ fun LoginScreen(
                                 Text("Tu sesión está lista", style = MaterialTheme.typography.bodyMedium)
                             }
                         } else {
-                            CircularProgressIndicator(Modifier.size(24.dp))
+                            com.example.sanaesencia.ui.components.CargaSanaesencia("Validando")
                             Text("Validando tu acceso…")
                         }
                     }
@@ -148,6 +151,9 @@ fun LoginScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        var verDemo by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+        TextButton(onClick={verDemo=!verDemo}) { Text("Acceso de administración de demostración") }
+        if(verDemo) Text("Solo demostración local\nCorreo: admin.demo@sanaesencia.local\nContraseña: DemoCentro2026!",style=MaterialTheme.typography.bodySmall)
         TextButton(onClick = onNavigateToRegistro, enabled = !cargando) {
             Text("¿No tienes cuenta? Regístrate aquí")
         }

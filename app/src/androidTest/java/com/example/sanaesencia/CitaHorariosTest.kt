@@ -16,21 +16,28 @@ class CitaHorariosTest {
     @Test fun migracionConservaDatosYLiberaLaRestriccionDeHorasCanceladas() = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val archivo = java.io.File(context.cacheDir, "agenda-migracion-${System.nanoTime()}.db")
-        val anterior = Room.databaseBuilder(context, AppDatabase::class.java, archivo.absolutePath).build()
+        val anterior = Room.databaseBuilder(context, AppDatabase::class.java, archivo.absolutePath).addCallback(AppDatabase.INTEGRIDAD).build()
         try {
             anterior.servicioDao().insertarTodos(listOf(ServicioEntity(id=1, nombre="Prueba", categoria="Prueba", descripcion="", duracionMin=50, precioClp=1, permiteOnline=false)))
             anterior.especialistaDao().insertarTodos(listOf(EspecialistaEntity(id=1,nombre="Profesional",especialidad="Prueba")))
-            anterior.citaDao().insertar(CitaEntity(id=1,emailPaciente="migration@example.com",servicioId=1,especialistaId=1,
+            anterior.citaDao().insertar(CitaEntity(id=1,emailPaciente="MIGRATION@example.com",servicioId=1,especialistaId=1,
                 fechaHoraInicio=fecha(20,10),duracionMin=50,modalidad=Modalidad.PRESENCIAL,estado=EstadoCita.CANCELADA))
-            // Reconstruir el único cambio de esquema de v1: su índice era UNIQUE.
+            // Reconstruir esquema v1 sin las columnas y tablas de la nueva versión.
+            val sql=anterior.openHelper.writableDatabase
+            sql.execSQL("DROP TRIGGER IF EXISTS citas_sin_traslapes_insert")
+            sql.execSQL("DROP TRIGGER IF EXISTS citas_sin_traslapes_update")
+            sql.execSQL("DROP INDEX index_citas_boxId")
+            sql.execSQL("ALTER TABLE citas DROP COLUMN boxId")
+            for(tabla in listOf("usuarios","mensajes","boxes","especialista_servicio")) sql.execSQL("DROP TABLE $tabla")
             anterior.openHelper.writableDatabase.execSQL("DROP INDEX index_citas_especialistaId_fechaHoraInicio")
             anterior.openHelper.writableDatabase.execSQL("CREATE UNIQUE INDEX index_citas_especialistaId_fechaHoraInicio ON citas(especialistaId, fechaHoraInicio)")
             anterior.openHelper.writableDatabase.execSQL("PRAGMA user_version = 1")
         } finally { anterior.close() }
         val migrada = Room.databaseBuilder(context,AppDatabase::class.java,archivo.absolutePath)
-            .addMigrations(AppDatabase.MIGRATION_1_2).build()
+            .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3).addCallback(AppDatabase.INTEGRIDAD).build()
         try {
             assertEquals(1L,migrada.citaDao().obtenerDetallePorId(1)!!.cita.id)
+            assertEquals("migration@example.com",migrada.citaDao().obtenerDetallePorId(1)!!.cita.emailPaciente)
             val repo = CitaRepository(migrada) { fecha(19,8) }
             assertTrue(repo.agendar("nuevo@example.com",1,1,fecha(20,10),Modalidad.PRESENCIAL) is Resultado.Exito)
             assertEquals(EstadoCita.CANCELADA,migrada.citaDao().obtenerDetallePorId(1)!!.cita.estado)
@@ -45,7 +52,7 @@ class CitaHorariosTest {
     }.timeInMillis
 
     @Test fun horasOcupadasSeOcultanYCanceladasSePuedenVolverAReservar() = runBlocking {
-        val db = Room.inMemoryDatabaseBuilder(InstrumentationRegistry.getInstrumentation().targetContext, AppDatabase::class.java).build()
+        val db = Room.inMemoryDatabaseBuilder(InstrumentationRegistry.getInstrumentation().targetContext, AppDatabase::class.java).addCallback(AppDatabase.INTEGRIDAD).build()
         try {
             db.servicioDao().insertarTodos(listOf(ServicioEntity(id=1, nombre="Prueba", categoria="Prueba", descripcion="", duracionMin=50, precioClp=1, permiteOnline=false)))
             db.especialistaDao().insertarTodos(listOf(EspecialistaEntity(id=1, nombre="Uno", especialidad="Prueba"), EspecialistaEntity(id=2, nombre="Dos", especialidad="Prueba")))

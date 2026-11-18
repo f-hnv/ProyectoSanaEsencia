@@ -43,7 +43,7 @@ class AgendaEspecialistasTest {
     fun reservaGuardaElEspecialistaElegidoEnRoom() = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         // Base temporal: comprobar la reserva sin alterar los datos de la aplicación.
-        val db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
+        val db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).addCallback(AppDatabase.INTEGRIDAD).build()
         val citas = CitaRepository(db)
         val vm = AgendaViewModel(citas, ServicioRepository(db.servicioDao()),
             EspecialistaRepository(db.especialistaDao()), "prueba.agenda@example.com")

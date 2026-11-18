@@ -26,6 +26,11 @@ interface EspecialistaDao {
     @Query("SELECT * FROM especialistas WHERE id = :id")
     suspend fun obtenerPorId(id: Long): EspecialistaEntity?
 
+    @Query("""SELECT * FROM especialistas e WHERE activo = 1 AND (:servicioId IS NULL OR
+        NOT EXISTS (SELECT 1 FROM especialista_servicio es WHERE es.especialistaId = e.id) OR
+        EXISTS (SELECT 1 FROM especialista_servicio es WHERE es.especialistaId = e.id AND es.servicioId = :servicioId)) ORDER BY nombre""")
+    fun observarParaServicio(servicioId: Long?): Flow<List<EspecialistaEntity>>
+
     @Query("SELECT COUNT(*) FROM especialistas")
     suspend fun contar(): Int
 }

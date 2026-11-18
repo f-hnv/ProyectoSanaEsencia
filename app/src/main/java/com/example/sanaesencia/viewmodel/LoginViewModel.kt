@@ -39,16 +39,7 @@ class LoginViewModel : ViewModel() {
     }
 
     private fun validateEmail(emailInput: String) {
-        if (emailInput.isBlank()) {
-            _emailError.value = "El correo es obligatorio"
-        } else if (!emailInput.endsWith("@duoc.cl") &&
-            !emailInput.endsWith("@profesor.duoc.cl") &&
-            !emailInput.endsWith("@gmail.com") &&
-            !emailInput.endsWith("@hotmail.com")) {
-            _emailError.value = "Solo correos permitidos (@duoc.cl, @gmail.com, etc.)"
-        } else {
-            _emailError.value = null
-        }
+        _emailError.value = com.example.sanaesencia.utils.ValidacionCuenta.correo(emailInput)
     }
 
     private fun validatePassword(passwordInput: String) {
@@ -73,25 +64,20 @@ class LoginViewModel : ViewModel() {
             _accesoConcedido.value = false
 
             viewModelScope.launch {
-                // El acceso local compara las credenciales con la cuenta guardada en el registro.
-                val sharedPref = context.getSharedPreferences("sanaesencia_prefs", Context.MODE_PRIVATE)
-                val emailGuardado = sharedPref.getString("email_registrado", null)
-                val passwordGuardada = sharedPref.getString("password_registrada", null)
-
-                // Solo una coincidencia de correo y contraseña crea la sesión del paciente.
-                if (emailGuardado == _email.value && passwordGuardada == _password.value) {
-                    sharedPref.edit().putString("email_sesion", emailGuardado).apply()
-                    // La confirmación visual aparece solo después de verificar las credenciales.
-                    _accesoConcedido.value = true
-                    delay(900)
+                try {
+                    val cuenta = com.example.sanaesencia.data.repository.CuentaRepository(context).entrar(_email.value,_password.value)
+                    if (cuenta != null) {
+                        _accesoConcedido.value = true
+                        delay(900)
+                        _cargando.value = false
+                        onSuccess()
+                    } else {
+                        _cargando.value = false
+                        _passwordError.value = "Credenciales incorrectas o cuenta desactivada"
+                    }
+                } catch (_: Exception) {
                     _cargando.value = false
-                    onSuccess()
-                } else if (emailGuardado == null) {
-                    _cargando.value = false
-                    _emailError.value = "No existe una cuenta. ¡Regístrate primero!"
-                } else {
-                    _cargando.value = false
-                    _passwordError.value = "Credenciales incorrectas"
+                    _passwordError.value = "No se pudo iniciar sesión. Reintenta."
                 }
             }
         }

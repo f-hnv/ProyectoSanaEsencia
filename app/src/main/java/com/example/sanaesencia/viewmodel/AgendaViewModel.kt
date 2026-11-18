@@ -61,6 +61,7 @@ class AgendaViewModel(
     private val _uiState = MutableStateFlow(AgendaUiState())
     val uiState: StateFlow<AgendaUiState> = _uiState.asStateFlow()
     private var consultaHorarios: Job? = null
+    private var consultaEspecialistas: Job? = null
 
     init {
         cargarEspecialistas()
@@ -77,9 +78,10 @@ class AgendaViewModel(
     }
 
     fun cargarEspecialistas() {
+        consultaEspecialistas?.cancel()
         _uiState.update { it.copy(cargandoEspecialistas = true, errorEspecialistas = null) }
-        viewModelScope.launch {
-            especialistaRepository.observarEspecialistas()
+        consultaEspecialistas = viewModelScope.launch {
+            especialistaRepository.observarParaServicio(_uiState.value.servicioSeleccionado?.id)
                 .catch {
                     _uiState.update {
                         it.copy(cargandoEspecialistas = false, errorEspecialistas = "No se pudieron cargar los especialistas")
@@ -134,6 +136,7 @@ class AgendaViewModel(
                     errores = it.errores.copy(servicio = null, modalidad = null)
                 )
             }
+            cargarEspecialistas()
             cargarHorarios()
         }
     }
@@ -158,7 +161,8 @@ class AgendaViewModel(
         val actual = _uiState.value
         if (actual.citaEditandoId != null || actual.operacion is EstadoOperacion.Cargando) return
         if (modalidad == Modalidad.ONLINE && actual.servicioSeleccionado?.permiteOnline != true) return
-        _uiState.update { it.copy(modalidad = modalidad, errores = it.errores.copy(modalidad = null)) }
+        _uiState.update { it.copy(modalidad = modalidad, fechaHoraInicio = null, errores = it.errores.copy(modalidad = null)) }
+        cargarHorarios()
     }
 
     fun cargarHorarios() {
@@ -170,7 +174,7 @@ class AgendaViewModel(
         val servicio = actual.servicioSeleccionado ?: return
         _uiState.update { it.copy(cargandoHorarios = true) }
         consultaHorarios = viewModelScope.launch {
-            citaRepository.observarHorariosDisponibles(dia, especialistaId, servicio.duracionMin, actual.citaEditandoId)
+            citaRepository.observarHorariosDisponibles(dia, especialistaId, servicio.duracionMin, actual.citaEditandoId, emailPaciente, actual.modalidad)
                 .catch { _uiState.update { it.copy(cargandoHorarios = false, errorHorarios = "No se pudieron cargar los horarios") } }
                 .collect { horarios ->
                     _uiState.update { it.copy(horariosDisponibles = horarios, cargandoHorarios = false,
@@ -256,7 +260,7 @@ class AgendaViewModel(
     }
 
     private fun erroresDeCampo(error: ErrorAgenda, base: ErroresFormularioAgenda) = when (error) {
-        ErrorAgenda.FechaPasada, ErrorAgenda.HorarioOcupado, ErrorAgenda.HorarioFueraAtencion,
+        ErrorAgenda.PacienteOcupado, ErrorAgenda.SinBox, ErrorAgenda.FechaPasada, ErrorAgenda.HorarioOcupado, ErrorAgenda.HorarioFueraAtencion,
         ErrorAgenda.AnticipacionInsuficiente, ErrorAgenda.CambioFueraPlazo -> base.copy(fechaHora = error.mensaje)
         ErrorAgenda.ServicioNoDisponible -> base.copy(servicio = error.mensaje)
         ErrorAgenda.EspecialistaNoDisponible -> base.copy(especialista = error.mensaje)

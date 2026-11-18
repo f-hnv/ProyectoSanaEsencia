@@ -8,6 +8,9 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -45,8 +48,27 @@ fun PerfilScreen(
     onLogout: () -> Unit,
     viewModel: PerfilViewModel = viewModel()
 ) {
+    val teclado=androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+    val foco=androidx.compose.ui.platform.LocalFocusManager.current
     val context = LocalContext.current
     val fotoUri by viewModel.fotoPerfilUri
+    var nombre by rememberSaveable { mutableStateOf("") }
+    var telefono by rememberSaveable { mutableStateOf("") }
+    var cambiarClave by remember { mutableStateOf(false) }
+    var claveActual by remember { mutableStateOf("") }
+    var nuevaClave by remember { mutableStateOf("") }
+    var confirmarClave by remember { mutableStateOf("") }
+    LaunchedEffect(viewModel.perfil?.email) {
+        nombre = viewModel.perfil?.nombre.orEmpty(); telefono = viewModel.perfil?.telefono.orEmpty()
+    }
+    if (cambiarClave) AlertDialog(onDismissRequest={ cambiarClave=false },
+        title={ Text("Cambiar contraseña") }, text={ Column {
+            OutlinedTextField(claveActual,{claveActual=it},label={Text("Contraseña actual")},visualTransformation=PasswordVisualTransformation())
+            OutlinedTextField(nuevaClave,{nuevaClave=it},label={Text("Nueva contraseña")},visualTransformation=PasswordVisualTransformation())
+            OutlinedTextField(confirmarClave,{confirmarClave=it},label={Text("Confirmar nueva contraseña")},visualTransformation=PasswordVisualTransformation())
+            viewModel.mensaje?.let { Text(it) }
+        } }, confirmButton={ TextButton(onClick={viewModel.cambiarClave(claveActual,nuevaClave,confirmarClave)},enabled=!viewModel.guardando){Text("Actualizar contraseña")} },
+        dismissButton={ TextButton(onClick={cambiarClave=false; claveActual="";nuevaClave="";confirmarClave=""}){Text("Cerrar")} })
     var tempCameraUri by rememberSaveable { mutableStateOf<String?>(null) }
     var errorRecurso by remember { mutableStateOf<String?>(null) }
 
@@ -97,7 +119,7 @@ fun PerfilScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(24.dp),
+                .imePadding().verticalScroll(rememberScrollState()).padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
@@ -125,7 +147,18 @@ fun PerfilScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(20.dp))
+            Text(viewModel.perfil?.email.orEmpty(),style=MaterialTheme.typography.bodyMedium)
+            Text("Perfil: ${viewModel.perfil?.rol?.lowercase() ?: "sin sesión"}",style=MaterialTheme.typography.labelMedium)
+            OutlinedTextField(nombre,{nombre=it},label={Text("Nombre completo")},modifier=Modifier.fillMaxWidth(),singleLine=true)
+            OutlinedTextField(telefono,{telefono=it},label={Text("Teléfono de contacto")},modifier=Modifier.fillMaxWidth(),singleLine=true,
+                keyboardOptions=androidx.compose.foundation.text.KeyboardOptions(keyboardType=androidx.compose.ui.text.input.KeyboardType.Phone))
+            ElevatedButton(onClick={teclado?.hide();foco.clearFocus();viewModel.guardar(nombre,telefono)},enabled=!viewModel.guardando && viewModel.perfil!=null,
+                modifier=Modifier.fillMaxWidth()){Text(if(viewModel.guardando) "Guardando…" else "Guardar perfil")}
+            viewModel.mensaje?.let { Text(it,modifier=Modifier.padding(vertical=8.dp)) }
+            TextButton(onClick={cambiarClave=true}){Text("Cambiar contraseña")}
+            Text("Tu perfil y tu foto se guardan en este dispositivo.",style=MaterialTheme.typography.bodySmall)
+            Spacer(modifier = Modifier.height(20.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),

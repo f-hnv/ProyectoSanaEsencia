@@ -74,6 +74,7 @@ fun SedeContent(
     onMapa: () -> Unit,
     errorMapa: String? = null
 ) {
+    val umbral by com.example.sanaesencia.domain.model.ConfiguracionCentro.umbralKm.collectAsState()
     Scaffold(topBar = {
         TopAppBar(title = { Text("Cómo llegar") }, navigationIcon = {
             IconButton(onClick = onNavigateBack) {
@@ -102,6 +103,11 @@ fun SedeContent(
                         is EstadoUbicacion.Exito -> {
                             Text("Estás a ${estado.distanciaTexto} de la sede", style = MaterialTheme.typography.titleLarge)
                             Text("Distancia aproximada en línea recta; el recorrido puede ser mayor.", style = MaterialTheme.typography.bodySmall)
+                            Text("Latitud: ${ubicacion.latitud} · Longitud: ${ubicacion.longitud}",style=MaterialTheme.typography.bodySmall)
+                            Text(if ((estado.distanciaMetros ?: 0.0) > umbral * 1000)
+                                "Estás a más de ${umbral.toInt()} km. Te sugerimos atención online cuando el servicio lo permita."
+                                else "Estás cerca del centro. Puedes considerar atención presencial.")
+                            Text("La distancia es una recomendación: no impide reservar desde otra ciudad o país.",style=MaterialTheme.typography.bodySmall)
                             ubicacion.precisionM?.let {
                                 Text("Precisión aproximada: ${it.toInt()} m", style = MaterialTheme.typography.bodySmall)
                             }

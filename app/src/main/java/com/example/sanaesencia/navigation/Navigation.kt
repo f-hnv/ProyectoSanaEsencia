@@ -43,10 +43,13 @@ sealed class Rutas(val ruta: String) {
     object Perfil : Rutas("perfil")
     object Sede : Rutas("sede")
     object Contacto : Rutas("contacto")
+    object Mensajes : Rutas("mensajes")
+    object Administracion : Rutas("administracion")
 }
 
 @Composable
 fun SanaesenciaNavigation(navController: NavHostController) {
+    com.example.sanaesencia.ui.components.SanaShell(navController) {
     NavHost(
         navController = navController,
         startDestination = Rutas.Login.ruta,
@@ -122,10 +125,13 @@ fun SanaesenciaNavigation(navController: NavHostController) {
         composable(Rutas.Sede.ruta) {
             SedeScreen(onNavigateBack = { navController.popBackStack() })
         }
+        composable(Rutas.Mensajes.ruta) { com.example.sanaesencia.ui.mensajes.MensajesScreen() }
+        composable(Rutas.Administracion.ruta) { com.example.sanaesencia.ui.administracion.AdministracionScreen() }
         composable(Rutas.Contacto.ruta) {
             ContactoScreen(onNavigateBack = { navController.popBackStack() },
                 onNavigateToSede = { navController.navigate(Rutas.Sede.ruta) })
         }
+    }
     }
 }
 

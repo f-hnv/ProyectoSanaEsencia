@@ -3,6 +3,8 @@ package com.example.sanaesencia.viewmodel
 import android.content.Context
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
 import androidx.lifecycle.ViewModel
 
 /** Valida el formulario de registro y conserva una cuenta de demostración en SharedPreferences. */
@@ -30,21 +32,12 @@ class RegistroViewModel : ViewModel() {
 
     fun onNombreChange(newValue: String) {
         _nombre.value = newValue
-        if (newValue.isBlank()) _nombreError.value = "El nombre es obligatorio" else _nombreError.value = null
+        _nombreError.value = if (newValue.trim().length < 3) "El nombre debe tener al menos 3 caracteres" else null
     }
 
     fun onEmailChange(newValue: String) {
         _email.value = newValue
-        if (newValue.isBlank()) {
-            _emailError.value = "El correo es obligatorio"
-        } else if (!newValue.endsWith("@duoc.cl") &&
-            !newValue.endsWith("@profesor.duoc.cl") &&
-            !newValue.endsWith("@gmail.com") &&
-            !newValue.endsWith("@hotmail.com")) {
-            _emailError.value = "Solo correos con @duoc.cl, @profesor.duoc.cl, @gmail.com y @hotmail.com"
-        } else {
-            _emailError.value = null
-        }
+        _emailError.value = com.example.sanaesencia.utils.ValidacionCuenta.correo(newValue)
     }
 
     fun onPasswordChange(newValue: String) {
@@ -79,15 +72,13 @@ class RegistroViewModel : ViewModel() {
             _nombre.value.isNotBlank() && _email.value.isNotBlank() &&
             _password.value.isNotBlank() && _confirmPassword.value.isNotBlank()
         ) {
-            // Guardamos el usuario en la memoria local (SharedPreferences)
-            val sharedPref = context.getSharedPreferences("sanaesencia_prefs", Context.MODE_PRIVATE)
-            with(sharedPref.edit()) {
-                putString("nombre_registrado", _nombre.value)
-                putString("email_registrado", _email.value)
-                putString("password_registrada", _password.value)
-                apply()
+            viewModelScope.launch {
+                try {
+                    com.example.sanaesencia.data.repository.CuentaRepository(context)
+                        .registrar(_nombre.value,_email.value,_password.value)
+                    onSuccess()
+                } catch (e: Exception) { _emailError.value = e.message ?: "No se pudo crear la cuenta" }
             }
-            onSuccess()
         }
     }
 }

@@ -1,5 +1,6 @@
 package com.example.sanaesencia.data.local.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -27,6 +28,7 @@ import com.example.sanaesencia.domain.model.Modalidad
         Index("servicioId"),
         Index("especialistaId"),
         Index("emailPaciente"),
+        Index("boxId"),
         Index(value = ["especialistaId", "fechaHoraInicio"])
     ]
 )
@@ -40,6 +42,7 @@ data class CitaEntity(
     val modalidad: Modalidad,
     val estado: EstadoCita = EstadoCita.PROGRAMADA,
     val notas: String = "",
+    @ColumnInfo(defaultValue = "NULL") val boxId: Long? = null,
     val creadaEn: Long = System.currentTimeMillis(),
     val actualizadaEn: Long = System.currentTimeMillis()
 )

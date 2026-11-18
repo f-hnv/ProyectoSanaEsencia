@@ -80,6 +80,18 @@ interface CitaDao {
         AND (fechaHoraInicio + duracionMin * 60000) > :inicio""")
     fun observarOcupacion(especialistaId: Long, inicio: Long, fin: Long): Flow<List<CitaEntity>>
 
+    @Query("""SELECT * FROM citas WHERE estado != 'CANCELADA'
+        AND fechaHoraInicio < :fin AND fechaHoraInicio + duracionMin * 60000 > :inicio""")
+    suspend fun ocupacion(inicio: Long, fin: Long): List<CitaEntity>
+
+    @Query("""SELECT * FROM citas WHERE estado != 'CANCELADA'
+        AND fechaHoraInicio < :fin AND fechaHoraInicio + duracionMin * 60000 > :inicio""")
+    fun observarTodaOcupacion(inicio: Long, fin: Long): Flow<List<CitaEntity>>
+
+    @Transaction
+    @Query("SELECT * FROM citas ORDER BY fechaHoraInicio DESC")
+    fun observarTodas(): Flow<List<CitaConDetalle>>
+
     // Base para las alertas de deserción (ratios de cancelaciones / inasistencias).
     @Query("SELECT COUNT(*) FROM citas WHERE emailPaciente = :email AND estado = :estado")
     suspend fun contarPorEstado(email: String, estado: EstadoCita): Int

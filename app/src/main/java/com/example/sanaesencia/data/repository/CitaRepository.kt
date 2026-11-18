@@ -11,6 +11,7 @@ import com.example.sanaesencia.domain.model.Modalidad
 import com.example.sanaesencia.domain.model.Resultado
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.combine
 import com.example.sanaesencia.domain.model.HorariosAgenda
 
 class CitaRepository(
@@ -64,6 +65,17 @@ class CitaRepository(
             return@withTransaction Resultado.Error(ErrorAgenda.HorarioOcupado)
         }
 
+        val ocupacion = citaDao.ocupacion(fechaHoraInicio, fin)
+        if (ocupacion.any { it.emailPaciente.equals(emailPaciente, true) })
+            return@withTransaction Resultado.Error(ErrorAgenda.PacienteOcupado)
+        val servicios = db.centroDao().serviciosDeEspecialista(especialistaId)
+        if (servicios.isNotEmpty() && servicioId !in servicios)
+            return@withTransaction Resultado.Error(ErrorAgenda.EspecialistaNoDisponible)
+        val box = if (modalidad == Modalidad.PRESENCIAL) db.centroDao().boxesActivos().shuffled()
+            .firstOrNull { b -> ocupacion.none { it.boxId == b.id } } else null
+        if (modalidad == Modalidad.PRESENCIAL && box == null)
+            return@withTransaction Resultado.Error(ErrorAgenda.SinBox)
+
         val cita = CitaEntity(
             emailPaciente = emailPaciente,
             servicioId = servicioId,
@@ -72,6 +84,7 @@ class CitaRepository(
             duracionMin = servicio.duracionMin,
             modalidad = modalidad,
             notas = notas,
+            boxId = box?.id,
             creadaEn = ahora(),
             actualizadaEn = ahora()
         )
@@ -124,21 +137,32 @@ class CitaRepository(
             return@withTransaction Resultado.Error(ErrorAgenda.HorarioOcupado)
         }
 
-        citaDao.actualizar(cita.copy(fechaHoraInicio = nuevaFechaHora, actualizadaEn = ahora()))
+        val ocupacion = citaDao.ocupacion(nuevaFechaHora, fin).filter { it.id != citaId }
+        if (ocupacion.any { it.emailPaciente.equals(cita.emailPaciente, true) })
+            return@withTransaction Resultado.Error(ErrorAgenda.PacienteOcupado)
+        val box = if (cita.modalidad == Modalidad.PRESENCIAL) db.centroDao().boxesActivos().shuffled()
+            .firstOrNull { b -> ocupacion.none { it.boxId == b.id } } else null
+        if (cita.modalidad == Modalidad.PRESENCIAL && box == null)
+            return@withTransaction Resultado.Error(ErrorAgenda.SinBox)
+        citaDao.actualizar(cita.copy(fechaHoraInicio = nuevaFechaHora, boxId = box?.id, actualizadaEn = ahora()))
         Resultado.Exito(Unit)
     }
 
     fun observarHorariosDisponibles(
-        dia: Long, especialistaId: Long, duracionMin: Int, citaEditandoId: Long? = null
-    ): Flow<List<Long>> = citaDao.observarOcupacion(
-        especialistaId, HorariosAgenda.inicioDia(dia), HorariosAgenda.siguienteDia(dia)
-    ).map { citas ->
+        dia: Long, especialistaId: Long, duracionMin: Int, citaEditandoId: Long? = null,
+        emailPaciente: String? = null, modalidad: Modalidad = Modalidad.PRESENCIAL
+    ): Flow<List<Long>> = combine(
+        citaDao.observarTodaOcupacion(HorariosAgenda.inicioDia(dia), HorariosAgenda.siguienteDia(dia)),
+        db.centroDao().observarBoxesActivos()
+    ) { citas, boxes ->
         HorariosAgenda.bloquesDelDia(dia, duracionMin).filter { inicio ->
             val fin = inicio + duracionMin * 60_000L
-            inicio - ahora() >= HorariosAgenda.ANTICIPACION_MS && citas.none {
-                it.id != citaEditandoId && it.fechaHoraInicio < fin &&
-                    it.fechaHoraInicio + it.duracionMin * 60_000L > inicio
-            }
+            val ocupadas = citas.filter { it.id != citaEditandoId && it.fechaHoraInicio < fin &&
+                it.fechaHoraInicio + it.duracionMin * 60_000L > inicio }
+            inicio - ahora() >= HorariosAgenda.ANTICIPACION_MS &&
+                ocupadas.none { it.especialistaId == especialistaId ||
+                    (emailPaciente != null && it.emailPaciente.equals(emailPaciente, true)) } &&
+                (modalidad == Modalidad.ONLINE || boxes.any { box -> ocupadas.none { it.boxId == box.id } })
         }
     }
 }

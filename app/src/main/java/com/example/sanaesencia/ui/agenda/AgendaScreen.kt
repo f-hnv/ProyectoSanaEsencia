@@ -51,6 +51,8 @@ fun AgendaScreen(
     val viewModel: AgendaViewModel = viewModel(factory = factory)
 
     val estado by viewModel.uiState.collectAsState()
+    val distancia by com.example.sanaesencia.domain.model.ConfiguracionCentro.distanciaMetros.collectAsState()
+    val umbral by com.example.sanaesencia.domain.model.ConfiguracionCentro.umbralKm.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(servicioIdPreseleccionado, citaIdAEditar) {
@@ -149,6 +151,9 @@ fun AgendaScreen(
 
             if (!esEdicion && estado.servicioSeleccionado != null) {
                 Text("Modalidad de atención", style = MaterialTheme.typography.titleMedium)
+                if (distancia != null && distancia!! > umbral*1000 && estado.servicioSeleccionado?.permiteOnline == true) {
+                    Text("Por tu distancia al centro te sugerimos modalidad online. La elección es tuya.",color=MaterialTheme.colorScheme.primary)
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     FilterChip(selected = estado.modalidad == Modalidad.PRESENCIAL,
                         onClick = { viewModel.onModalidadSeleccionada(Modalidad.PRESENCIAL) },
@@ -178,16 +183,17 @@ fun AgendaScreen(
                     Text(estado.errorHorarios.orEmpty(), color = MaterialTheme.colorScheme.error)
                     TextButton(onClick = viewModel::cargarHorarios) { Text("Reintentar horarios") }
                 }
-                estado.horariosDisponibles.isEmpty() -> Text("No hay horas disponibles para este día. Prueba otra fecha.")
                 else -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     // Dos columnas para mantener botones cómodos en pantallas pequeñas.
-                    estado.horariosDisponibles.chunked(2).forEach { fila ->
+                    if(estado.horariosDisponibles.isEmpty()) Text("No hay horas disponibles para este día. Prueba otra fecha.")
+                    Text("Los bloques ocupados o fuera de anticipación aparecen deshabilitados.",style=MaterialTheme.typography.bodySmall)
+                    HorariosAgenda.bloquesDelDia(requireNotNull(estado.diaSeleccionado),requireNotNull(estado.servicioSeleccionado).duracionMin).chunked(2).forEach { fila ->
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             fila.forEach { hora ->
                                 FilterChip(selected = estado.fechaHoraInicio == hora,
                                     onClick = { viewModel.onFechaHoraSeleccionada(hora) },
-                                    enabled = !cargandoOperacion,
-                                    label = { Text(HorariosAgenda.formatear(hora, "HH:mm"), style = MaterialTheme.typography.titleMedium) },
+                                    enabled = !cargandoOperacion && hora in estado.horariosDisponibles,
+                                    label = { Text(HorariosAgenda.formatear(hora, "HH:mm") + if(hora !in estado.horariosDisponibles) " · No disponible" else "", style = MaterialTheme.typography.titleMedium) },
                                     leadingIcon = if (estado.fechaHoraInicio == hora) {
                                         { Icon(Icons.Filled.CheckCircle, contentDescription = "Seleccionada") }
                                     } else null,

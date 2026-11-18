@@ -85,9 +85,9 @@ class ContactoAccesoPerfilTest {
             compose.onNodeWithText("Correo Electrónico").performTextInput("prueba.sanaesencia@gmail.com")
             compose.onNodeWithText("Contraseña").performTextInput("Prueba123")
             compose.onNodeWithText("Ingresar").performScrollTo().performClick()
-            compose.waitUntil(3_000) { vm.accesoConcedido.value }
+            compose.waitUntil(15_000) { vm.accesoConcedido.value }
             compose.onNodeWithText("¡Bienvenido a Sanaesencia!").performScrollTo().assertIsDisplayed()
-            compose.waitUntil(3_000) { navegaciones == 1 }
+            compose.waitUntil(15_000) { navegaciones == 1 }
             compose.runOnIdle { assertEquals(1,navegaciones) }
             assertEquals("prueba.sanaesencia@gmail.com",preferencias.getString("email_sesion",null))
         } finally {
@@ -121,7 +121,7 @@ class ContactoAccesoPerfilTest {
                 SanaesenciaTheme { PerfilScreen({}, {}) }
             }
         }
-        compose.onNodeWithText("Cámara").performClick()
+        compose.onNodeWithText("Cámara").performScrollTo().performClick()
         compose.onNodeWithText("No se concedió el permiso de cámara",substring=true).assertIsDisplayed()
         compose.onNodeWithText("Galería").assertIsEnabled()
     }

@@ -115,12 +115,12 @@ fun HomeContent(
                     val nombreServicio = citaConDetalle.servicio.nombre
 
                     val cal = Calendar.getInstance().apply { timeInMillis = fechaCita }
-                    val fechaStr = DateFormat.format("dd/MM/yyyy HH:mm", cal).toString()
+                    val fechaStr = com.example.sanaesencia.domain.model.HorariosAgenda.formatear(fechaCita,"dd/MM/yyyy HH:mm")
 
                     val ahora = System.currentTimeMillis()
                     val diferenciaMilis = fechaCita - ahora
                     val doceHorasMilis = 12 * 60 * 60 * 1000L
-                    val sePuedeCancelar = diferenciaMilis > doceHorasMilis
+                    val sePuedeCancelar = diferenciaMilis >= doceHorasMilis
 
                     Card(
                         modifier = Modifier.fillMaxWidth(),
@@ -131,6 +131,7 @@ fun HomeContent(
                             Text(nombreServicio, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(fechaStr, style = MaterialTheme.typography.bodyMedium)
+                            Text("${citaConDetalle.cita.modalidad} · ${citaConDetalle.cita.boxId?.let { "Box $it" } ?: "Sin box / online"}",style=MaterialTheme.typography.bodySmall)
 
                             Spacer(modifier = Modifier.height(16.dp))
 

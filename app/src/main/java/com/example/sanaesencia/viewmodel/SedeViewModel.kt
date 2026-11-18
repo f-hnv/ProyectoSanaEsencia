@@ -66,6 +66,7 @@ class SedeViewModel(private val locationHelper: ProveedorUbicacion) : ViewModel(
                         resultado.latitud, resultado.longitud,
                         SedeSanaesencia.LATITUD, SedeSanaesencia.LONGITUD
                     )
+                    com.example.sanaesencia.domain.model.ConfiguracionCentro.distanciaMetros.value = metros
                     SedeUiState(
                         estado = EstadoUbicacion.Exito(
                             resultado.latitud, resultado.longitud, resultado.precisionM

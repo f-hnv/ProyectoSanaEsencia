@@ -5,6 +5,8 @@ import com.example.sanaesencia.data.local.entity.EspecialistaEntity
 import kotlinx.coroutines.flow.Flow
 
 class EspecialistaRepository(private val dao: EspecialistaDao) {
+    fun observarParaServicio(servicioId: Long?) = dao.observarParaServicio(servicioId)
+
 
     fun observarEspecialistas(): Flow<List<EspecialistaEntity>> = dao.observarActivos()
 
