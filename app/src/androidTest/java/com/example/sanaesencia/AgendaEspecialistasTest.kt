@@ -76,24 +76,27 @@ class AgendaEspecialistasTest {
     @Test
     fun reservaExigeElegirEspecialistaYPermiteCambiarLaSeleccion() {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext as SanaesenciaApp
-        runBlocking { SeedData.poblarSiVacia(app.container.database) }
+        val servicioId = runBlocking {
+            com.example.sanaesencia.data.local.seed.CatalogoCentro.instalar(app.container.database)
+            app.container.database.servicioDao().obtenerPorNombre("Psicología infantojuvenil")!!.id
+        }
         compose.setContent {
             SanaesenciaTheme {
-                AgendaScreen(servicioIdPreseleccionado = 1L, onNavigateBack = {})
+                AgendaScreen(servicioIdPreseleccionado = servicioId, onNavigateBack = {})
             }
         }
         compose.waitUntil(10_000) {
-            compose.onAllNodes(hasText("Dra. Paula Demo", substring = true))
+            compose.onAllNodes(hasText("Samantha Bastías", substring = true))
                 .fetchSemanticsNodes().isNotEmpty()
         }
 
         // La reserva debe empezar sin profesional asignado automáticamente.
-        compose.onNodeWithText("Dra. Paula Demo", substring = true).assertIsNotSelected()
-        compose.onNodeWithText("Ter. Mateo Demo", substring = true).assertIsNotSelected()
+        compose.onNodeWithText("Samantha Bastías", substring = true).assertIsNotSelected()
+        compose.onNodeWithText("Sebastián Olivares", substring = true).assertIsNotSelected()
         compose.onNodeWithText("Confirmar Reserva").performScrollTo().assertIsNotEnabled()
 
-        compose.onNodeWithText("Ter. Mateo Demo", substring = true).performScrollTo().performClick()
-        compose.onNodeWithText("Ter. Mateo Demo", substring = true).assertIsSelected()
+        compose.onNodeWithText("Sebastián Olivares", substring = true).performScrollTo().performClick()
+        compose.onNodeWithText("Sebastián Olivares", substring = true).assertIsSelected()
         compose.onNodeWithText("Confirmar Reserva").performScrollTo().assertIsNotEnabled()
         compose.onNodeWithTag("dia-${HorariosAgenda.inicioDia(diaLaboralFuturo())}")
             .performScrollTo().performClick()
@@ -101,9 +104,9 @@ class AgendaEspecialistasTest {
         compose.onNodeWithText("09:00").performScrollTo().performClick()
         compose.onNodeWithText("Confirmar Reserva").performScrollTo().assertIsEnabled()
 
-        compose.onNodeWithText("Dra. Paula Demo", substring = true).performScrollTo().performClick()
-        compose.onNodeWithText("Dra. Paula Demo", substring = true).assertIsSelected()
-        compose.onNodeWithText("Ter. Mateo Demo", substring = true).assertIsNotSelected()
+        compose.onNodeWithText("Samantha Bastías", substring = true).performScrollTo().performClick()
+        compose.onNodeWithText("Samantha Bastías", substring = true).assertIsSelected()
+        compose.onNodeWithText("Sebastián Olivares", substring = true).assertIsNotSelected()
         compose.onNodeWithText("Confirmar Reserva").performScrollTo().assertIsNotEnabled()
     }
 

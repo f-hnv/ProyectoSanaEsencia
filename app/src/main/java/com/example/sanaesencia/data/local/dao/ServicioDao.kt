@@ -34,4 +34,7 @@ interface ServicioDao {
 
     @Query("SELECT COUNT(*) FROM servicios")
     suspend fun contar(): Int
+
+    @Query("SELECT * FROM servicios WHERE nombre = :nombre LIMIT 1")
+    suspend fun obtenerPorNombre(nombre: String): ServicioEntity?
 }

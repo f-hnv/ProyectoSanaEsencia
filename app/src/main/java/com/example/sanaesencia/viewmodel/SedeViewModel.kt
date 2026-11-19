@@ -52,12 +52,17 @@ class SedeViewModel(private val locationHelper: ProveedorUbicacion) : ViewModel(
 
     fun onPermisoResultado(concedido: Boolean) {
         if (concedido) actualizarUbicacion()
-        else _uiState.update { it.copy(estado = EstadoUbicacion.PermisoDenegado) }
+        else {
+            com.example.sanaesencia.domain.model.ConfiguracionCentro.distanciaMetros.value = null
+            _uiState.value = SedeUiState(EstadoUbicacion.PermisoDenegado)
+        }
     }
 
     fun actualizarUbicacion() {
         if (_uiState.value.estado is EstadoUbicacion.Cargando) return // evita lecturas simultáneas
-        _uiState.update { it.copy(estado = EstadoUbicacion.Cargando) }
+        // Nunca reutilizar una lectura anterior mientras se obtiene o falla la ubicación actual.
+        com.example.sanaesencia.domain.model.ConfiguracionCentro.distanciaMetros.value = null
+        _uiState.value = SedeUiState(estado = EstadoUbicacion.Cargando)
 
         viewModelScope.launch {
             _uiState.value = when (val resultado = locationHelper.obtenerUbicacionActual()) {

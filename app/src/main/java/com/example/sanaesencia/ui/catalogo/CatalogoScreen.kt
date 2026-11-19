@@ -99,8 +99,9 @@ fun CatalogoContent(
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            // precioClp almacena el valor del servicio en pesos chilenos.
-                            text = "$${servicio.precioClp}",
+                            text = "${servicio.duracionMin} minutos · " + java.text.NumberFormat
+                                .getCurrencyInstance(java.util.Locale.forLanguageTag("es-CL"))
+                                .apply { maximumFractionDigits = 0 }.format(servicio.precioClp),
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.primary
                         )

@@ -21,4 +21,7 @@ interface CentroDao {
     @Insert suspend fun vincularServicios(vinculos: List<EspecialistaServicioEntity>)
     @Query("SELECT servicioId FROM especialista_servicio WHERE especialistaId = :id")
     suspend fun serviciosDeEspecialista(id: Long): List<Long>
+
+    @Query("SELECT * FROM usuarios WHERE especialistaId = :id AND rol = 'ESPECIALISTA' AND email != :excluir LIMIT 1")
+    suspend fun cuentaDeEspecialista(id: Long, excluir: String): UsuarioEntity?
 }

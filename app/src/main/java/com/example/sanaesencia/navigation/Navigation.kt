@@ -49,7 +49,7 @@ sealed class Rutas(val ruta: String) {
 
 @Composable
 fun SanaesenciaNavigation(navController: NavHostController) {
-    com.example.sanaesencia.ui.components.SanaShell(navController) {
+    com.example.sanaesencia.ui.components.SanaShell(navController) { usuario ->
     NavHost(
         navController = navController,
         startDestination = Rutas.Login.ruta,
@@ -76,6 +76,10 @@ fun SanaesenciaNavigation(navController: NavHostController) {
             )
         }
         composable(Rutas.Home.ruta) {
+            when (usuario?.rol) {
+                "ESPECIALISTA" -> com.example.sanaesencia.ui.terapeuta.TerapeutaScreen()
+                "ADMIN" -> com.example.sanaesencia.ui.administracion.AdministracionScreen()
+                "PACIENTE" -> {
             HomeScreen(
                 onNavigateToCatalogo = { navController.navigate(Rutas.CatalogoServicios.ruta) },
                 onNavigateToAgenda = { servId, citId ->
@@ -87,6 +91,8 @@ fun SanaesenciaNavigation(navController: NavHostController) {
                 onNavigateToSede = { navController.navigate(Rutas.Sede.ruta) },
                 onNavigateToContacto = { navController.navigate(Rutas.Contacto.ruta) }
             )
+                }
+            }
         }
         composable(Rutas.CatalogoServicios.ruta) {
             CatalogoScreen(

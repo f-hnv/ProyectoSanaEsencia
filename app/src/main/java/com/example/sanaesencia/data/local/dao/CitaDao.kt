@@ -92,6 +92,11 @@ interface CitaDao {
     @Query("SELECT * FROM citas ORDER BY fechaHoraInicio DESC")
     fun observarTodas(): Flow<List<CitaConDetalle>>
 
+    @Transaction
+    @Query("""SELECT * FROM citas WHERE especialistaId = :especialistaId
+        AND fechaHoraInicio >= :inicio AND fechaHoraInicio < :fin ORDER BY fechaHoraInicio ASC""")
+    fun observarMesEspecialista(especialistaId: Long, inicio: Long, fin: Long): Flow<List<CitaConDetalle>>
+
     // Base para las alertas de deserción (ratios de cancelaciones / inasistencias).
     @Query("SELECT COUNT(*) FROM citas WHERE emailPaciente = :email AND estado = :estado")
     suspend fun contarPorEstado(email: String, estado: EstadoCita): Int

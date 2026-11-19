@@ -2,6 +2,7 @@ package com.example.sanaesencia.data.local.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import androidx.room.ColumnInfo
 
 @Entity(tableName = "especialistas")
 data class EspecialistaEntity(
@@ -10,5 +11,7 @@ data class EspecialistaEntity(
     val especialidad: String,
     val descripcion: String = "",
     val fotoUri: String? = null,
-    val activo: Boolean = true
+    val activo: Boolean = true,
+    @ColumnInfo(defaultValue = "1") val permitePresencial: Boolean = true,
+    @ColumnInfo(defaultValue = "1") val permiteOnline: Boolean = true
 )

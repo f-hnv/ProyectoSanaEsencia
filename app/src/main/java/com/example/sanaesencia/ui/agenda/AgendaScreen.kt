@@ -51,8 +51,6 @@ fun AgendaScreen(
     val viewModel: AgendaViewModel = viewModel(factory = factory)
 
     val estado by viewModel.uiState.collectAsState()
-    val distancia by com.example.sanaesencia.domain.model.ConfiguracionCentro.distanciaMetros.collectAsState()
-    val umbral by com.example.sanaesencia.domain.model.ConfiguracionCentro.umbralKm.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(servicioIdPreseleccionado, citaIdAEditar) {
@@ -80,6 +78,8 @@ fun AgendaScreen(
 
     val esEdicion = citaIdAEditar != null
     val cargandoOperacion = estado.operacion is EstadoOperacion.Cargando
+    val profesional = estado.especialistaDeCita ?: estado.especialistas.find { it.id == estado.especialistaId }
+    val permiteOnline = estado.servicioSeleccionado?.permiteOnline == true && profesional?.permiteOnline != false
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -125,7 +125,7 @@ fun AgendaScreen(
                         Text(estado.especialistaDeCita?.nombre ?: "Cargando especialista…",
                             style = MaterialTheme.typography.titleMedium)
                         estado.especialistaDeCita?.let { Text(it.especialidad) }
-                        Text("Al reprogramar se mantiene el profesional y solo cambia la fecha y hora.",
+                        Text("Al reprogramar se conserva el profesional. Puedes cambiar fecha, hora y modalidad si el servicio admite online.",
                             style = MaterialTheme.typography.bodySmall)
                     }
                 }
@@ -149,17 +149,17 @@ fun AgendaScreen(
                 }
             }
 
-            if (!esEdicion && estado.servicioSeleccionado != null) {
+            if (estado.servicioSeleccionado != null) {
+                UbicacionReserva(factory, permiteOnline,
+                    estado.modalidad, !cargandoOperacion,
+                    onElegirOnline = { viewModel.onModalidadSeleccionada(Modalidad.ONLINE) })
                 Text("Modalidad de atención", style = MaterialTheme.typography.titleMedium)
-                if (distancia != null && distancia!! > umbral*1000 && estado.servicioSeleccionado?.permiteOnline == true) {
-                    Text("Por tu distancia al centro te sugerimos modalidad online. La elección es tuya.",color=MaterialTheme.colorScheme.primary)
-                }
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     FilterChip(selected = estado.modalidad == Modalidad.PRESENCIAL,
                         onClick = { viewModel.onModalidadSeleccionada(Modalidad.PRESENCIAL) },
-                        enabled = !cargandoOperacion, label = { Text("Presencial") },
+                        enabled = !cargandoOperacion && profesional?.permitePresencial != false, label = { Text("Presencial") },
                         modifier = Modifier.heightIn(min = 48.dp))
-                    if (estado.servicioSeleccionado?.permiteOnline == true) {
+                    if (permiteOnline) {
                         FilterChip(selected = estado.modalidad == Modalidad.ONLINE,
                             onClick = { viewModel.onModalidadSeleccionada(Modalidad.ONLINE) },
                             enabled = !cargandoOperacion, label = { Text("Online") },
@@ -220,8 +220,9 @@ fun AgendaScreen(
                             Text("${servicio.duracionMin} minutos · ${precio.format(servicio.precioClp)}")
                         }
                         if (estado.modalidad == Modalidad.PRESENCIAL) {
+                            Text("El box libre se asignará al confirmar y aparecerá en tu cita.")
                             TextButton(onClick = onNavigateToSede) { Text("Ver cómo llegar") }
-                        }
+                        } else Text("Atención online · no utiliza un box del centro")
                         Text("Puedes cancelar o reprogramar con al menos 12 horas de anticipación.",
                             style = MaterialTheme.typography.bodySmall)
                     }
@@ -306,6 +307,11 @@ private fun SelectorEspecialistas(
                             fontWeight = FontWeight.SemiBold)
                         Text(especialista.especialidad, style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.primary)
+                        Text(when {
+                            !especialista.permitePresencial -> "Atención solo online"
+                            !especialista.permiteOnline -> "Atención presencial"
+                            else -> "Presencial y online"
+                        }, style = MaterialTheme.typography.labelMedium)
                         if (especialista.descripcion.isNotBlank()) {
                             Text(especialista.descripcion, style = MaterialTheme.typography.bodySmall)
                         }

@@ -11,6 +11,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.sanaesencia.viewmodel.AdministracionViewModel
 import com.example.sanaesencia.domain.model.HorariosAgenda
+import com.example.sanaesencia.data.local.entity.UsuarioEntity
+import com.example.sanaesencia.data.local.entity.EspecialistaEntity
+import androidx.compose.ui.platform.testTag
 
 @Composable
 fun AdministracionScreen(vm:AdministracionViewModel=viewModel()) {
@@ -18,6 +21,7 @@ fun AdministracionScreen(vm:AdministracionViewModel=viewModel()) {
     var nombre by rememberSaveable{mutableStateOf("")};var email by rememberSaveable{mutableStateOf("")}
     var clave by rememberSaveable{mutableStateOf("")};var especialidad by rememberSaveable{mutableStateOf("")}
     var descripcion by rememberSaveable{mutableStateOf("")};var seleccion by remember{mutableStateOf(setOf<Long>())}
+    var buscarCuenta by rememberSaveable { mutableStateOf("") }
     Column(Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
         Text(if(vm.usuario?.rol=="ADMIN") "Administración" else "Agenda del profesional",style=MaterialTheme.typography.headlineSmall)
         if(vm.usuario==null){Text("Cargando cuenta…");return@Column}
@@ -47,8 +51,16 @@ fun AdministracionScreen(vm:AdministracionViewModel=viewModel()) {
                 Text("${box.nombre} · ${if(box.activo) "Habilitado" else "Deshabilitado"}")
                 Switch(checked=box.activo,onCheckedChange={vm.alternarBox(box)},enabled=!vm.ocupado)
             }}
-            Text("Cuentas registradas",style=MaterialTheme.typography.titleLarge)
-            vm.usuarios.forEach{Text("${it.nombre} · ${it.rol.lowercase()}\n${it.email}")}
+            Text("Roles de las cuentas",style=MaterialTheme.typography.titleLarge)
+            Text("Paciente: puede reservar. Especialista: ve las citas de su perfil profesional por mes.")
+            OutlinedTextField(buscarCuenta, { buscarCuenta = it }, label = { Text("Buscar cuenta por nombre o correo") },
+                singleLine = true, modifier = Modifier.fillMaxWidth())
+            vm.usuarios.filter { buscarCuenta.isBlank() || it.email.contains(buscarCuenta.trim(), true) ||
+                it.nombre.contains(buscarCuenta.trim(), true) }.forEach { cuenta ->
+                RolCuentaCard(cuenta, vm.especialistas.filter { profesional ->
+                    vm.usuarios.none { otra -> otra.email != cuenta.email && otra.rol == "ESPECIALISTA" && otra.especialistaId == profesional.id }
+                }, vm.ocupado) { rol, id -> vm.cambiarRol(cuenta.email, rol, id) }
+            }
             HorizontalDivider()
         }
         Text("Citas registradas",style=MaterialTheme.typography.titleLarge)
@@ -61,6 +73,43 @@ fun AdministracionScreen(vm:AdministracionViewModel=viewModel()) {
                 Text("${c.modalidad} · ${c.estado} · ${c.boxId?.let { "Box $it" } ?: "Sin box / online"}")
                 if(c.notas.isNotBlank()) Text(c.notas)
             } }
+        }
+    }
+}
+
+@Composable
+private fun RolCuentaCard(cuenta: UsuarioEntity, profesionales: List<EspecialistaEntity>, ocupado: Boolean,
+    onGuardar: (String, Long?) -> Unit) {
+    var rol by remember(cuenta.email, cuenta.rol) { mutableStateOf(cuenta.rol) }
+    var profesionalId by remember(cuenta.email, cuenta.especialistaId) { mutableStateOf(cuenta.especialistaId) }
+    Card(Modifier.fillMaxWidth().testTag("rol-${cuenta.email}")) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(cuenta.nombre, style = MaterialTheme.typography.titleMedium)
+            Text(cuenta.email)
+            if (cuenta.rol == "ADMIN") Text("Administrador · rol protegido")
+            else {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(selected = rol == "PACIENTE", onClick = { rol = "PACIENTE" },
+                        enabled = !ocupado, label = { Text("Paciente") })
+                    FilterChip(selected = rol == "ESPECIALISTA", onClick = { rol = "ESPECIALISTA" },
+                        enabled = !ocupado, label = { Text("Especialista") })
+                }
+                if (rol == "ESPECIALISTA") {
+                    Text("Perfil profesional cuya agenda verá esta cuenta")
+                    if (profesionales.isEmpty()) Text("No hay perfiles libres. Crea un profesional y su cuenta con el formulario superior.")
+                    profesionales.forEach { profesional ->
+                        FilterChip(selected = profesionalId == profesional.id,
+                            onClick = { profesionalId = profesional.id }, enabled = !ocupado,
+                            label = { Text("${profesional.nombre} · ${profesional.especialidad}" +
+                                if (profesional.activo) "" else " · Agenda pausada") })
+                    }
+                }
+                val id = if (rol == "ESPECIALISTA") profesionalId else null
+                Button(onClick = { onGuardar(rol, id) }, enabled = !ocupado &&
+                    (rol != "ESPECIALISTA" || profesionales.any { it.id == id }) &&
+                    (rol != cuenta.rol || id != cuenta.especialistaId),
+                    modifier = Modifier.testTag("guardar-rol-${cuenta.email}")) { Text("Guardar rol") }
+            }
         }
     }
 }

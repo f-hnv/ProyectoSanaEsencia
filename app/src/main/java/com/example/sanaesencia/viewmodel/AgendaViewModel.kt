@@ -145,7 +145,13 @@ class AgendaViewModel(
         val actual = _uiState.value
         if (actual.citaEditandoId != null || actual.operacion is EstadoOperacion.Cargando ||
             actual.especialistas.none { it.id == especialistaId }) return
-        _uiState.update { it.copy(especialistaId = especialistaId, fechaHoraInicio = null,
+        val profesional = actual.especialistas.first { it.id == especialistaId }
+        val modalidad = when {
+            !profesional.permitePresencial -> Modalidad.ONLINE
+            !profesional.permiteOnline -> Modalidad.PRESENCIAL
+            else -> actual.modalidad
+        }
+        _uiState.update { it.copy(especialistaId = especialistaId, modalidad = modalidad, fechaHoraInicio = null,
             errores = it.errores.copy(especialista = null, fechaHora = null)) }
         cargarHorarios()
     }
@@ -159,8 +165,11 @@ class AgendaViewModel(
 
     fun onModalidadSeleccionada(modalidad: Modalidad) {
         val actual = _uiState.value
-        if (actual.citaEditandoId != null || actual.operacion is EstadoOperacion.Cargando) return
+        if (actual.operacion is EstadoOperacion.Cargando) return
         if (modalidad == Modalidad.ONLINE && actual.servicioSeleccionado?.permiteOnline != true) return
+        val profesional = actual.especialistaDeCita ?: actual.especialistas.find { it.id == actual.especialistaId }
+        if (modalidad == Modalidad.ONLINE && profesional?.permiteOnline == false) return
+        if (modalidad == Modalidad.PRESENCIAL && profesional?.permitePresencial == false) return
         _uiState.update { it.copy(modalidad = modalidad, fechaHoraInicio = null, errores = it.errores.copy(modalidad = null)) }
         cargarHorarios()
     }
@@ -222,19 +231,26 @@ class AgendaViewModel(
         viewModelScope.launch {
             // Una reserva nueva inserta una cita; la reprogramación actualiza la fecha de la cita existente.
             val resultado = if (actual.citaEditandoId != null) {
-                citaRepository.reprogramar(actual.citaEditandoId, fechaHora)
+                citaRepository.reprogramar(actual.citaEditandoId, fechaHora, actual.modalidad)
             } else {
                 citaRepository.agendar(emailPaciente, servicioId, especialistaId, fechaHora, actual.modalidad, actual.notas.trim())
             }
 
             when (resultado) {
-                is Resultado.Exito -> _uiState.update {
+                is Resultado.Exito -> {
+                    val id = actual.citaEditandoId ?: (resultado.datos as? Long)
+                    val confirmada = id?.let { citaRepository.obtenerDetallePorId(it)?.cita }
+                    val lugar = if (confirmada?.modalidad == Modalidad.ONLINE) "Online · sin box"
+                        else confirmada?.boxId?.let { "Presencial · Box $it" }.orEmpty()
+                    _uiState.update {
                     it.copy(
-                        operacion = EstadoOperacion.Exito(if (actual.citaEditandoId != null) "Cita reprogramada con éxito" else "Cita agendada correctamente"),
+                        operacion = EstadoOperacion.Exito((if (actual.citaEditandoId != null) "Cita reprogramada con éxito" else "Cita agendada correctamente") +
+                            if (lugar.isBlank()) "" else ". $lugar", id),
                         servicioSeleccionado = null, especialistaId = null, fechaHoraInicio = null, citaEditandoId = null,
                         diaSeleccionado = null, horariosDisponibles = emptyList(), especialistaDeCita = null,
                         modalidad = Modalidad.PRESENCIAL, notas = ""
                     )
+                }
                 }
                 is Resultado.Error -> _uiState.update {
                     it.copy(operacion = EstadoOperacion.Error(resultado.error), errores = erroresDeCampo(resultado.error, it.errores))

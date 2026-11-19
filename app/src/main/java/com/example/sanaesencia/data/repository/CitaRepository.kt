@@ -52,10 +52,11 @@ class CitaRepository(
         if (!HorariosAgenda.esBloqueValido(fechaHoraInicio, servicio.duracionMin))
             return@withTransaction Resultado.Error(ErrorAgenda.HorarioFueraAtencion)
 
-        especialistaDao.obtenerPorId(especialistaId)?.takeIf { it.activo }
+        val especialista = especialistaDao.obtenerPorId(especialistaId)?.takeIf { it.activo }
             ?: return@withTransaction Resultado.Error(ErrorAgenda.EspecialistaNoDisponible)
 
-        if (modalidad == Modalidad.ONLINE && !servicio.permiteOnline) {
+        if ((modalidad == Modalidad.ONLINE && (!servicio.permiteOnline || !especialista.permiteOnline)) ||
+            (modalidad == Modalidad.PRESENCIAL && !especialista.permitePresencial)) {
             return@withTransaction Resultado.Error(ErrorAgenda.ModalidadNoDisponible)
         }
 
@@ -116,7 +117,7 @@ class CitaRepository(
     }
 
     // Valida y actualiza la fecha de una cita existente
-    suspend fun reprogramar(citaId: Long, nuevaFechaHora: Long): Resultado<Unit> = db.withTransaction {
+    suspend fun reprogramar(citaId: Long, nuevaFechaHora: Long, nuevaModalidad: Modalidad? = null): Resultado<Unit> = db.withTransaction {
         val cita = citaDao.obtenerDetallePorId(citaId)?.cita
             ?: return@withTransaction Resultado.Error(ErrorAgenda.CitaNoEncontrada)
 
@@ -129,6 +130,13 @@ class CitaRepository(
         if (!HorariosAgenda.esBloqueValido(nuevaFechaHora, cita.duracionMin))
             return@withTransaction Resultado.Error(ErrorAgenda.HorarioFueraAtencion)
 
+        val modalidad = nuevaModalidad ?: cita.modalidad
+        val especialista = especialistaDao.obtenerPorId(cita.especialistaId)
+            ?: return@withTransaction Resultado.Error(ErrorAgenda.EspecialistaNoDisponible)
+        if ((modalidad == Modalidad.ONLINE && (servicioDao.obtenerPorId(cita.servicioId)?.permiteOnline != true || !especialista.permiteOnline)) ||
+            (modalidad == Modalidad.PRESENCIAL && !especialista.permitePresencial))
+            return@withTransaction Resultado.Error(ErrorAgenda.ModalidadNoDisponible)
+
         val fin = nuevaFechaHora + cita.duracionMin * 60_000L
         val traslapes = citaDao.buscarTraslapes(cita.especialistaId, nuevaFechaHora, fin)
 
@@ -140,11 +148,11 @@ class CitaRepository(
         val ocupacion = citaDao.ocupacion(nuevaFechaHora, fin).filter { it.id != citaId }
         if (ocupacion.any { it.emailPaciente.equals(cita.emailPaciente, true) })
             return@withTransaction Resultado.Error(ErrorAgenda.PacienteOcupado)
-        val box = if (cita.modalidad == Modalidad.PRESENCIAL) db.centroDao().boxesActivos().shuffled()
+        val box = if (modalidad == Modalidad.PRESENCIAL) db.centroDao().boxesActivos().shuffled()
             .firstOrNull { b -> ocupacion.none { it.boxId == b.id } } else null
-        if (cita.modalidad == Modalidad.PRESENCIAL && box == null)
+        if (modalidad == Modalidad.PRESENCIAL && box == null)
             return@withTransaction Resultado.Error(ErrorAgenda.SinBox)
-        citaDao.actualizar(cita.copy(fechaHoraInicio = nuevaFechaHora, boxId = box?.id, actualizadaEn = ahora()))
+        citaDao.actualizar(cita.copy(fechaHoraInicio = nuevaFechaHora, modalidad = modalidad, boxId = box?.id, actualizadaEn = ahora()))
         Resultado.Exito(Unit)
     }
 

@@ -20,7 +20,7 @@ import com.example.sanaesencia.data.local.entity.ServicioEntity
 @Database(
     entities = [ServicioEntity::class, EspecialistaEntity::class, CitaEntity::class, UsuarioEntity::class,
         BoxEntity::class, MensajeEntity::class, EspecialistaServicioEntity::class],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -32,6 +32,12 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun citaDao(): CitaDao
 
     companion object {
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE especialistas ADD COLUMN permitePresencial INTEGER NOT NULL DEFAULT 1")
+                db.execSQL("ALTER TABLE especialistas ADD COLUMN permiteOnline INTEGER NOT NULL DEFAULT 1")
+            }
+        }
         val INTEGRIDAD = object : Callback() {
             override fun onCreate(db: SupportSQLiteDatabase) { crearSoporte(db); crearProtecciones(db) }
             override fun onOpen(db: SupportSQLiteDatabase) { crearProtecciones(db) }
@@ -115,7 +121,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "sanaesencia_db" // nombre del archivo .db en el dispositivo
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                     .addCallback(INTEGRIDAD)
                     .build()
                     .also { INSTANCE = it } // se guarda para que las próximas llamadas la reutilicen

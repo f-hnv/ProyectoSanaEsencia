@@ -46,9 +46,6 @@ class FlujoMejorasTest {
         compose.onNodeWithText("Correo Electrónico").performTextInput(CuentaRepository.ADMIN_DEMO)
         compose.onNodeWithText("Contraseña").performTextInput(CuentaRepository.CLAVE_DEMO)
         compose.onNodeWithText("Ingresar").performScrollTo().performClick()
-        compose.waitUntil(15_000){compose.onAllNodesWithText("Tus próximas sesiones").fetchSemanticsNodes().isNotEmpty()}
-        compose.onNodeWithContentDescription("Abrir menú").performClick()
-        compose.onNodeWithText("Administración").performClick()
         compose.waitUntil(10_000){compose.onAllNodesWithText("Crear profesional y cuenta").fetchSemanticsNodes().isNotEmpty()}
         compose.onNodeWithText("Nombre del profesional").assertIsDisplayed()
         captura("administracion")

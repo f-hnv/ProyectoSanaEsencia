@@ -33,4 +33,10 @@ interface EspecialistaDao {
 
     @Query("SELECT COUNT(*) FROM especialistas")
     suspend fun contar(): Int
+
+    @Query("SELECT * FROM especialistas WHERE nombre = :nombre LIMIT 1")
+    suspend fun obtenerPorNombre(nombre: String): EspecialistaEntity?
+
+    @Query("SELECT * FROM especialistas ORDER BY nombre")
+    fun observarTodos(): Flow<List<EspecialistaEntity>>
 }

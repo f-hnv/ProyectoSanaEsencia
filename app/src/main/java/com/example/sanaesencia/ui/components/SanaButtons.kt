@@ -31,7 +31,7 @@ fun SanaOutlineButton(
     enabled: Boolean = true,
     colors: ButtonColors = ButtonDefaults.outlinedButtonColors(
         containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = .35f),
-        contentColor = MaterialTheme.colorScheme.secondary
+        contentColor = MaterialTheme.colorScheme.onSurface
     ),
     border: BorderStroke = BorderStroke(1.5.dp, MaterialTheme.colorScheme.secondary.copy(alpha = if (enabled) 1f else .3f)),
     content: @Composable RowScope.() -> Unit
@@ -53,9 +53,9 @@ fun SanaChoiceChip(
         enabled = enabled, leadingIcon = leadingIcon, shape = RoundedCornerShape(14.dp),
         colors = FilterChipDefaults.filterChipColors(
             containerColor = MaterialTheme.colorScheme.surface,
-            labelColor = MaterialTheme.colorScheme.secondary,
+            labelColor = MaterialTheme.colorScheme.onSurface,
             selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-            selectedLabelColor = MaterialTheme.colorScheme.primary,
+            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
             selectedLeadingIconColor = MaterialTheme.colorScheme.primary
         ),
         border = FilterChipDefaults.filterChipBorder(enabled = enabled, selected = selected,

@@ -105,6 +105,23 @@ class CuentaRepository(context: Context) {
             dao.insertarUsuario(nuevaCuenta(email,nombre,clave,"ESPECIALISTA",id))
         }
     }
+
+    /** Mantiene el perfil profesional separado de la cuenta y evita que dos cuentas compartan una agenda. */
+    suspend fun cambiarRol(email: String, rol: String, especialistaId: Long?) = withContext(Dispatchers.IO) {
+        db.withTransaction {
+            require(actual()?.rol == "ADMIN") { "Solo administración puede cambiar roles" }
+            require(rol == "PACIENTE" || rol == "ESPECIALISTA") { "Selecciona paciente o especialista" }
+            val cuenta = dao.usuario(email.trim().lowercase()) ?: error("La cuenta no existe")
+            require(cuenta.rol != "ADMIN") { "La cuenta administradora conserva su rol" }
+            val profesional = if (rol == "ESPECIALISTA") {
+                val id = requireNotNull(especialistaId) { "Selecciona el perfil profesional" }
+                require(db.especialistaDao().obtenerPorId(id) != null) { "Selecciona un perfil profesional" }
+                require(dao.cuentaDeEspecialista(id, cuenta.email) == null) { "Ese profesional ya tiene otra cuenta asignada" }
+                id
+            } else null
+            dao.actualizarUsuario(cuenta.copy(rol = rol, especialistaId = profesional))
+        }
+    }
     companion object {
         const val ADMIN_DEMO = "admin.demo@sanaesencia.local"
         const val CLAVE_DEMO = "DemoCentro2026!"

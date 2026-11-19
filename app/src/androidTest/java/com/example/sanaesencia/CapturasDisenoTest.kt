@@ -45,17 +45,26 @@ class CapturasDisenoTest {
     }
     @Test fun capturaAgenda() {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext as SanaesenciaApp
-        runBlocking { SeedData.poblarSiVacia(app.container.database) }
-        compose.setContent { SanaesenciaTheme { AgendaScreen(servicioIdPreseleccionado=1L,onNavigateBack={}) } }
-        compose.waitUntil(10_000) {
-            compose.onAllNodes(hasText("Dra. Paula Demo",substring=true)).fetchSemanticsNodes().isNotEmpty()
+        val servicioId = runBlocking {
+            com.example.sanaesencia.data.local.seed.CatalogoCentro.instalar(app.container.database)
+            app.container.database.servicioDao().obtenerPorNombre("Psicología infantojuvenil")!!.id
         }
-        compose.onNodeWithText("Dra. Paula Demo",substring=true).performScrollTo().performClick()
+        compose.setContent { SanaesenciaTheme { AgendaScreen(servicioIdPreseleccionado=servicioId,onNavigateBack={}) } }
+        compose.waitUntil(10_000) {
+            compose.onAllNodes(hasText("Samantha Bastías",substring=true)).fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithText("Samantha Bastías",substring=true).performScrollTo().performClick()
         val ahora = System.currentTimeMillis()
-        val dia = HorariosAgenda.diasParaElegir(ahora,50,ahora).first()
-        compose.onNodeWithTag("dia-$dia").performScrollTo().performClick()
-        compose.waitUntil(10_000) { compose.onAllNodes(hasText("09:00")).fetchSemanticsNodes().isNotEmpty() }
-        compose.onNodeWithText("09:00").performScrollTo().performClick()
+        val dia = HorariosAgenda.diasParaElegir(ahora,60,ahora).first()
+        // El día vive en una fila horizontal: mostrar primero la zona inferior del formulario.
+        compose.onNodeWithText("Confirmar Reserva").performScrollTo()
+        compose.onNodeWithTag("dia-$dia").performScrollTo().assertIsDisplayed().performClick().assertIsSelected()
+        val horas = HorariosAgenda.bloquesDelDia(dia, 60).map { HorariosAgenda.formatear(it, "HH:mm") }
+        compose.waitUntil(15_000) { horas.any { hora ->
+            compose.onAllNodes(hasText(hora) and isEnabled()).fetchSemanticsNodes().isNotEmpty()
+        } }
+        val horaLibre = horas.first { compose.onAllNodes(hasText(it) and isEnabled()).fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText(horaLibre).performScrollTo().performClick()
         compose.onNodeWithText("Toca una hora disponible").performScrollTo()
         guardar("agenda")
         compose.onNodeWithText("Confirmar Reserva").performScrollTo()

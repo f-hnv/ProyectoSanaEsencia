@@ -17,6 +17,7 @@ class AdministracionViewModel(app:Application):AndroidViewModel(app) {
     var boxes by mutableStateOf<List<BoxEntity>>(emptyList()); private set
     var citas by mutableStateOf<List<CitaConDetalle>>(emptyList()); private set
     var servicios by mutableStateOf<List<ServicioEntity>>(emptyList()); private set
+    var especialistas by mutableStateOf<List<EspecialistaEntity>>(emptyList()); private set
     var mensaje by mutableStateOf<String?>(null); private set
     var ocupado by mutableStateOf(false); private set
     init { viewModelScope.launch {
@@ -27,6 +28,7 @@ class AdministracionViewModel(app:Application):AndroidViewModel(app) {
             launch { cuenta.db.centroDao().usuarios().collect { usuarios=it } }
             launch { cuenta.db.centroDao().boxes().collect { boxes=it } }
             launch { cuenta.db.servicioDao().observarActivos().collect { servicios=it } }
+            launch { cuenta.db.especialistaDao().observarTodos().collect { especialistas=it } }
         }
     } }
     fun crear(nombre:String,email:String,clave:String,especialidad:String,descripcion:String,servicios:List<Long>) = operar {
@@ -39,6 +41,10 @@ class AdministracionViewModel(app:Application):AndroidViewModel(app) {
         require(km in 1f..1000f){"El umbral debe estar entre 1 y 1000 km"}
         com.example.sanaesencia.domain.model.ConfiguracionCentro.configurar(getApplication(),km)
         "Umbral de sugerencia online actualizado"
+    }
+    fun cambiarRol(email: String, rol: String, especialistaId: Long?) = operar {
+        cuenta.cambiarRol(email, rol, especialistaId)
+        "Rol actualizado. La cuenta verá su nueva pantalla al iniciar sesión."
     }
     fun alternarBox(box:BoxEntity) = operar {
         require(cuenta.actual()?.rol=="ADMIN") { "Acceso no autorizado" }

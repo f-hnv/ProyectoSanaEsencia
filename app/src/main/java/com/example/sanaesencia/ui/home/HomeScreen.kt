@@ -19,6 +19,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -30,6 +32,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.sanaesencia.ui.theme.SanaesenciaTheme
 import com.example.sanaesencia.viewmodel.AgendaViewModel
+import com.example.sanaesencia.viewmodel.EstadoOperacion
+import com.example.sanaesencia.domain.model.Modalidad
 import com.example.sanaesencia.data.local.relation.CitaConDetalle
 import java.util.Calendar
 import com.example.sanaesencia.ui.components.SanaOutlineButton as OutlinedButton
@@ -49,6 +53,14 @@ fun HomeScreen(
 
     val estado by viewModel.uiState.collectAsState()
     val proximasCitas = estado.proximasCitas
+    val snackbar = remember { SnackbarHostState() }
+    LaunchedEffect(estado.operacion) {
+        when (val operacion = estado.operacion) {
+            is EstadoOperacion.Exito -> { snackbar.showSnackbar(operacion.mensaje); viewModel.resultadoConsumido() }
+            is EstadoOperacion.Error -> { snackbar.showSnackbar(operacion.error.mensaje); viewModel.resultadoConsumido() }
+            else -> Unit
+        }
+    }
 
     val sharedPref = context.getSharedPreferences("sanaesencia_prefs", Context.MODE_PRIVATE)
     val nombreUsuario = sharedPref.getString("nombre_registrado", "Usuario") ?: "Usuario"
@@ -61,7 +73,9 @@ fun HomeScreen(
         onNavigateToAgenda = onNavigateToAgenda,
         onNavigateToPerfil = onNavigateToPerfil,
         onNavigateToSede = onNavigateToSede,
-        onNavigateToContacto = onNavigateToContacto
+        onNavigateToContacto = onNavigateToContacto,
+        operacionEnCurso = estado.operacion is EstadoOperacion.Cargando,
+        snackbar = snackbar
     )
 }
 
@@ -75,9 +89,12 @@ fun HomeContent(
     onNavigateToAgenda: (Long?, Long?) -> Unit,
     onNavigateToPerfil: () -> Unit,
     onNavigateToSede: () -> Unit,
-    onNavigateToContacto: () -> Unit
+    onNavigateToContacto: () -> Unit,
+    operacionEnCurso: Boolean = false,
+    snackbar: SnackbarHostState = remember { SnackbarHostState() }
 ) {
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
                 title = { Text("Hola, $nombreUsuario", color = MaterialTheme.colorScheme.primary) },
@@ -131,7 +148,10 @@ fun HomeContent(
                             Text(nombreServicio, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(fechaStr, style = MaterialTheme.typography.bodyMedium)
-                            Text("${citaConDetalle.cita.modalidad} · ${citaConDetalle.cita.boxId?.let { "Box $it" } ?: "Sin box / online"}",style=MaterialTheme.typography.bodySmall)
+                            Text("Especialista: ${citaConDetalle.especialista.nombre}", style = MaterialTheme.typography.bodyMedium)
+                            Text(if (citaConDetalle.cita.modalidad == Modalidad.ONLINE) "Online · sin box"
+                                else citaConDetalle.cita.boxId?.let { "Presencial · Box $it" } ?: "Presencial · box pendiente de asignar",
+                                style = MaterialTheme.typography.bodyMedium)
 
                             Spacer(modifier = Modifier.height(16.dp))
 
@@ -139,11 +159,13 @@ fun HomeContent(
                                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     OutlinedButton(
                                         onClick = { onNavigateToAgenda(null, citaId) },
+                                        enabled = !operacionEnCurso,
                                         modifier = Modifier.weight(1f)
                                     ) { Text("Modificar") }
 
                                     OutlinedButton(
                                         onClick = { onCancelarCita(citaId) },
+                                        enabled = !operacionEnCurso,
                                         modifier = Modifier.weight(1f),
                                         colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
                                         border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.error)

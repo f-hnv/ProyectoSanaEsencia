@@ -1,7 +1,7 @@
 package com.example.sanaesencia
 
 import android.app.Application
-import com.example.sanaesencia.data.local.seed.SeedData
+import com.example.sanaesencia.data.local.seed.CatalogoCentro
 import com.example.sanaesencia.di.AppContainer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -20,9 +20,9 @@ class SanaesenciaApp : Application() {
         container = AppContainer(this)
         com.example.sanaesencia.domain.model.ConfiguracionCentro.cargar(this)
 
-        // Los datos demo se insertan en segundo plano.
+        // Carga el catálogo público sin crear cuentas ni reservas ficticias.
         appScope.launch {
-            SeedData.poblarSiVacia(container.database)
+            CatalogoCentro.instalar(container.database)
             com.example.sanaesencia.data.repository.CuentaRepository(this@SanaesenciaApp).prepararDemostracion()
         }
 

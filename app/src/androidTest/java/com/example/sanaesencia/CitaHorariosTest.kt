@@ -28,13 +28,15 @@ class CitaHorariosTest {
             sql.execSQL("DROP TRIGGER IF EXISTS citas_sin_traslapes_update")
             sql.execSQL("DROP INDEX index_citas_boxId")
             sql.execSQL("ALTER TABLE citas DROP COLUMN boxId")
+            sql.execSQL("ALTER TABLE especialistas DROP COLUMN permitePresencial")
+            sql.execSQL("ALTER TABLE especialistas DROP COLUMN permiteOnline")
             for(tabla in listOf("usuarios","mensajes","boxes","especialista_servicio")) sql.execSQL("DROP TABLE $tabla")
             anterior.openHelper.writableDatabase.execSQL("DROP INDEX index_citas_especialistaId_fechaHoraInicio")
             anterior.openHelper.writableDatabase.execSQL("CREATE UNIQUE INDEX index_citas_especialistaId_fechaHoraInicio ON citas(especialistaId, fechaHoraInicio)")
             anterior.openHelper.writableDatabase.execSQL("PRAGMA user_version = 1")
         } finally { anterior.close() }
         val migrada = Room.databaseBuilder(context,AppDatabase::class.java,archivo.absolutePath)
-            .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3).addCallback(AppDatabase.INTEGRIDAD).build()
+            .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4).addCallback(AppDatabase.INTEGRIDAD).build()
         try {
             assertEquals(1L,migrada.citaDao().obtenerDetallePorId(1)!!.cita.id)
             assertEquals("migration@example.com",migrada.citaDao().obtenerDetallePorId(1)!!.cita.emailPaciente)
