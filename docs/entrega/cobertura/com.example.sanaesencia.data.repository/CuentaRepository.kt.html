@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CuentaRepository.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.example.sanaesencia.data.repository</a> &gt; <span class="el_source">CuentaRepository.kt</span></div><h1>CuentaRepository.kt</h1><pre class="source lang-java linenums">package com.example.sanaesencia.data.repository
+
+import android.content.Context
+import android.net.Uri
+import com.example.sanaesencia.data.local.AppDatabase
+import com.example.sanaesencia.data.local.entity.UsuarioEntity
+import com.example.sanaesencia.data.remote.*
+import com.example.sanaesencia.utils.ValidacionCuenta
+import com.example.sanaesencia.utils.ValidacionRegistro
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.map
+
+/** El servidor valida identidad y rol. Room conserva una copia del perfil y recursos locales. */
+<span class="fc" id="L15">class CuentaRepository(context: Context, private val api: UsuariosApi =</span>
+<span class="pc bpc" id="L16" title="4 of 8 branches missed.">    (context.applicationContext as? com.example.sanaesencia.SanaesenciaApp)?.container?.usuariosApi ?: ConexionBackend.usuarios) {</span>
+<span class="fc" id="L17">    private val appContext = context.applicationContext</span>
+<span class="fc" id="L18">    private val prefs = context.getSharedPreferences(&quot;sanaesencia_prefs&quot;, Context.MODE_PRIVATE)</span>
+<span class="fc" id="L19">    val db = AppDatabase.getInstance(appContext)</span>
+<span class="fc" id="L20">    private val dao = db.centroDao()</span>
+<span class="fc bfc" id="L21" title="All 6 branches covered.">    val emailActual: String get() = SesionBackend.actual()?.usuario?.correo.orEmpty()</span>
+<span class="fc" id="L22">    fun observarActual() = dao.observarUsuario(emailActual).map { cache -&gt; perfilDeSesion(cache) }</span>
+    private fun perfilDeSesion(cache: UsuarioEntity?): UsuarioEntity? {
+<span class="fc bfc" id="L24" title="All 4 branches covered.">        val u = SesionBackend.actual()?.usuario ?: return null</span>
+<span class="pc bpc" id="L25" title="5 of 10 branches missed.">        return cache?.takeIf { it.email == u.correo &amp;&amp; u.activo }?.copy(</span>
+<span class="fc" id="L26">            nombre=&quot;${u.nombre} ${u.apellido}&quot;.trim(), rol=u.rol, especialistaId=u.especialistaId, activo=u.activo)</span>
+    }
+<span class="fc" id="L28">    suspend fun actual(): UsuarioEntity? = perfilDeSesion(dao.usuario(emailActual))</span>
+    fun salir() {
+<span class="fc" id="L30">        SesionBackend.cerrar()</span>
+<span class="fc" id="L31">        prefs.edit().remove(&quot;email_sesion&quot;).remove(&quot;password_registrada&quot;).apply()</span>
+<span class="fc" id="L32">    }</span>
+<span class="fc" id="L33">    fun limpiarCredencialesAnteriores() { prefs.edit().remove(&quot;password_registrada&quot;).remove(&quot;email_sesion&quot;).apply() }</span>
+    suspend fun registrar(nombre: String, email: String, clave: String, apellido: String, run: String) {
+<span class="pc bpc" id="L35" title="2 of 4 branches missed.">        require(ValidacionRegistro.nombre(nombre) == null) { &quot;Revisa el nombre&quot; }</span>
+<span class="pc bpc" id="L36" title="2 of 4 branches missed.">        require(ValidacionRegistro.nombre(apellido) == null) { &quot;El apellido es obligatorio&quot; }</span>
+<span class="pc bpc" id="L37" title="1 of 6 branches missed.">        require(ValidacionRegistro.run(run.trim()) == null) { ValidacionRegistro.run(run.trim()).orEmpty() }</span>
+<span class="pc bpc" id="L38" title="2 of 4 branches missed.">        require(ValidacionCuenta.correo(email) == null) { &quot;Ingresa un correo válido&quot; }</span>
+<span class="pc bpc" id="L39" title="1 of 6 branches missed.">        require(ValidacionRegistro.clave(clave) == null) { ValidacionRegistro.clave(clave).orEmpty() }</span>
+<span class="fc" id="L40">        llamadaBackend { api.registrar(RegistroRequest(nombre.trim(), apellido.trim(), run.trim().uppercase(), email.trim().lowercase(), clave)) }</span>
+<span class="fc" id="L41">    }</span>
+<span class="fc" id="L42">    suspend fun entrar(email: String, clave: String): UsuarioEntity = withContext(Dispatchers.IO) {</span>
+<span class="fc" id="L43">        salir()</span>
+<span class="fc" id="L44">        val u = llamadaBackend { api.login(LoginRequest(email.trim().lowercase(), clave)) }</span>
+<span class="fc" id="L45">        SesionBackend.validar(u)</span>
+<span class="fc bfc" id="L46" title="All 2 branches covered.">        require(u.correo.equals(email.trim(), true)) { &quot;El servidor devolvió una cuenta no válida&quot; }</span>
+<span class="fc" id="L47">        val cache = guardarCache(u)</span>
+<span class="fc" id="L48">        SesionBackend.abrir(u, clave)</span>
+<span class="fc" id="L49">        prefs.edit().putString(&quot;nombre_registrado&quot;,cache.nombre).apply()</span>
+<span class="fc" id="L50">        cache</span>
+<span class="fc" id="L51">    }</span>
+<span class="fc" id="L52">    private suspend fun guardarCache(u: UsuarioRemoto): UsuarioEntity {</span>
+<span class="fc" id="L53">        val anterior = dao.usuario(u.correo)</span>
+<span class="fc" id="L54">        val cache = UsuarioEntity(email=u.correo, nombre=&quot;${u.nombre} ${u.apellido}&quot;.trim(), hash=&quot;&quot;, sal=&quot;&quot;,</span>
+<span class="pc bpc" id="L55" title="1 of 2 branches missed.">            rol=u.rol, especialistaId=u.especialistaId, activo=u.activo,</span>
+<span class="fc bfc" id="L56" title="All 6 branches covered.">            telefono=anterior?.telefono.orEmpty(), fotoUri=anterior?.fotoUri)</span>
+<span class="fc bfc" id="L57" title="All 2 branches covered.">        if (anterior == null) dao.insertarUsuario(cache) else dao.actualizarUsuario(cache)</span>
+<span class="fc" id="L58">        return cache</span>
+    }
+<span class="pc bnc" id="L60" title="All 6 branches missed.">    suspend fun editarPerfil(nombre: String, telefono: String, apellido: String = SesionBackend.actual()?.usuario?.apellido.orEmpty()) = withContext(Dispatchers.IO) {</span>
+<span class="pc bpc" id="L61" title="1 of 2 branches missed.">        val sesion = requireNotNull(SesionBackend.actual()) { &quot;Inicia sesión para editar tu perfil&quot; }</span>
+<span class="pc bpc" id="L62" title="3 of 6 branches missed.">        require(ValidacionRegistro.nombre(nombre) == null &amp;&amp; ValidacionRegistro.nombre(apellido) == null) { &quot;Revisa nombre y apellido&quot; }</span>
+<span class="fc bfc" id="L63" title="All 4 branches covered.">        require(ValidacionCuenta.telefono(telefono) == null) { &quot;Ingresa un teléfono válido&quot; }</span>
+<span class="fc" id="L64">        val remoto = llamadaBackend { api.editar(sesion.usuario.id, sesion.autorizacion, PerfilRequest(nombre.trim(), apellido.trim())) }</span>
+<span class="fc" id="L65">        SesionBackend.validar(remoto)</span>
+<span class="fc" id="L66">        SesionBackend.actualizar(remoto)</span>
+<span class="fc" id="L67">        val cache = guardarCache(remoto)</span>
+<span class="fc" id="L68">        dao.actualizarUsuario(cache.copy(telefono=telefono.trim()))</span>
+<span class="fc" id="L69">        prefs.edit().putString(&quot;nombre_registrado&quot;,cache.nombre).apply()</span>
+<span class="pc" id="L70">    }</span>
+<span class="pc" id="L71">    suspend fun guardarFoto(uri: Uri) = withContext(Dispatchers.IO) {</span>
+<span class="pc bpc" id="L72" title="1 of 2 branches missed.">        val u = actual() ?: error(&quot;Inicia sesión&quot;)</span>
+<span class="fc" id="L73">        val carpeta = java.io.File(appContext.filesDir,&quot;perfiles&quot;).apply { mkdirs() }</span>
+<span class="fc" id="L74">        val archivo = java.io.File(carpeta,&quot;${java.util.UUID.randomUUID()}.jpg&quot;)</span>
+<span class="pc" id="L75">        appContext.contentResolver.openInputStream(uri).use { entrada -&gt;</span>
+<span class="pc bpc" id="L76" title="1 of 2 branches missed.">            requireNotNull(entrada) { &quot;No se pudo leer la imagen&quot; }</span>
+<span class="pc" id="L77">            archivo.outputStream().use { entrada.copyTo(it) }</span>
+        }
+<span class="fc" id="L79">        dao.actualizarUsuario(u.copy(fotoUri=Uri.fromFile(archivo).toString()))</span>
+<span class="pc" id="L80">    }</span>
+    suspend fun buscarUsuario(id: Long): UsuarioRemoto {
+<span class="pc bpc" id="L82" title="1 of 2 branches missed.">        val sesion = requireNotNull(SesionBackend.actual()) { &quot;Inicia sesión&quot; }</span>
+<span class="pc bpc" id="L83" title="1 of 2 branches missed.">        require(sesion.usuario.rol == &quot;ADMIN&quot;) { &quot;Solo administración puede consultar cuentas&quot; }</span>
+<span class="fc" id="L84">        return llamadaBackend { api.obtener(id, sesion.autorizacion) }</span>
+    }
+<span class="fc" id="L86">    suspend fun asignarRol(id: Long, rol: String, especialistaId: Long?): UsuarioRemoto {</span>
+<span class="pc bpc" id="L87" title="1 of 2 branches missed.">        val sesion = requireNotNull(SesionBackend.actual()) { &quot;Inicia sesión&quot; }</span>
+<span class="fc bfc" id="L88" title="All 2 branches covered.">        require(sesion.usuario.rol == &quot;ADMIN&quot;) { &quot;Solo administración puede cambiar roles&quot; }</span>
+<span class="pc bpc" id="L89" title="1 of 2 branches missed.">        require(rol in setOf(&quot;PACIENTE&quot;, &quot;ESPECIALISTA&quot;)) { &quot;Selecciona paciente o especialista&quot; }</span>
+<span class="pc bpc" id="L90" title="1 of 2 branches missed.">        if (rol == &quot;ESPECIALISTA&quot;) {</span>
+<span class="pc bpc" id="L91" title="4 of 8 branches missed.">            val perfiles = (appContext as? com.example.sanaesencia.SanaesenciaApp)?.container?.perfilesApi ?: ConexionBackend.perfiles</span>
+<span class="pc bpc" id="L92" title="1 of 2 branches missed.">            val perfil = llamadaBackend { perfiles.obtener(requireNotNull(especialistaId) { &quot;Indica el perfil profesional&quot; }, sesion.autorizacion) }</span>
+<span class="pc bpc" id="L93" title="2 of 8 branches missed.">            require(perfil.activo &amp;&amp; perfil.id == especialistaId) { &quot;El perfil profesional no está activo&quot; }</span>
+        }
+<span class="pc bpc" id="L95" title="1 of 2 branches missed.">        return llamadaBackend { api.cambiarRol(id, sesion.autorizacion, RolRequest(rol, if (rol == &quot;ESPECIALISTA&quot;) especialistaId else null)) }</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

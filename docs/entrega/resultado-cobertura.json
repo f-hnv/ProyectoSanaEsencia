@@ -1,0 +1,27 @@
+{
+  "paquetes": [
+    "viewmodel",
+    "data.repository",
+    "domain",
+    "utils"
+  ],
+  "metricas": {
+    "LINE": {
+      "cubiertas": 1224,
+      "sinCubrir": 185,
+      "porcentaje": 86.87
+    },
+    "BRANCH": {
+      "cubiertas": 954,
+      "sinCubrir": 608,
+      "porcentaje": 61.08
+    },
+    "INSTRUCTION": {
+      "cubiertas": 15399,
+      "sinCubrir": 3438,
+      "porcentaje": 81.75
+    }
+  },
+  "pruebas": 92,
+  "fallos": 0
+}

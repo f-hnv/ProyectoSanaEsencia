@@ -1,0 +1,5 @@
+Alias name: sanaesencia
+Entry type: PrivateKeyEntry
+Owner: CN=SanaEsencia, OU=Proyecto Academico, O=SanaEsencia, C=CL
+SHA256: 30:96:04:63:C4:6C:20:FB:64:80:A0:12:A6:CE:79:19:B5:D8:BF:0B:3B:A8:19:5D:AA:BD:6B:CE:D7:9F:56:B2
+Subject Public Key Algorithm: 3072-bit RSA key

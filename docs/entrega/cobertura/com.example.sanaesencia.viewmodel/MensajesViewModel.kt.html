@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MensajesViewModel.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.example.sanaesencia.viewmodel</a> &gt; <span class="el_source">MensajesViewModel.kt</span></div><h1>MensajesViewModel.kt</h1><pre class="source lang-java linenums">package com.example.sanaesencia.viewmodel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import androidx.compose.runtime.*
+import com.example.sanaesencia.data.local.entity.*
+import com.example.sanaesencia.data.repository.*
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+
+<span class="fc" id="L11">class MensajesViewModel(app: Application): AndroidViewModel(app) {</span>
+<span class="fc" id="L12">    private val cuenta = CuentaRepository(app)</span>
+<span class="fc" id="L13">    private val repo = MensajeRepository(app)</span>
+<span class="fc" id="L14">    var usuario by mutableStateOf&lt;UsuarioEntity?&gt;(null); private set</span>
+<span class="pc" id="L15">    var pacientes by mutableStateOf&lt;List&lt;UsuarioEntity&gt;&gt;(emptyList()); private set</span>
+<span class="fc" id="L16">    var seleccionado by mutableStateOf&lt;String?&gt;(null); private set</span>
+<span class="fc" id="L17">    var mensajes by mutableStateOf&lt;List&lt;MensajeEntity&gt;&gt;(emptyList()); private set</span>
+<span class="fc" id="L18">    var texto by mutableStateOf(&quot;&quot;); private set</span>
+<span class="pc" id="L19">    var error by mutableStateOf&lt;String?&gt;(null); private set</span>
+<span class="fc" id="L20">    var enviando by mutableStateOf(false); private set</span>
+    private var observacion: Job? = null
+<span class="fc" id="L22">    init { viewModelScope.launch {</span>
+<span class="fc" id="L23">        usuario = cuenta.actual()</span>
+<span class="pc bpc" id="L24" title="2 of 4 branches missed.">        if (usuario?.rol == &quot;PACIENTE&quot;) seleccionar(usuario!!.email)</span>
+<span class="nc bnc" id="L25" title="All 6 branches missed.">        else if (usuario != null) cuenta.db.centroDao().usuarios().collect { pacientes=it.filter { u -&gt; u.rol==&quot;PACIENTE&quot; &amp;&amp; u.activo } }</span>
+<span class="pc" id="L26">    } }</span>
+<span class="fc" id="L27">    fun escribir(valor: String) { texto=valor.take(2000) }</span>
+    fun seleccionar(email: String) {
+<span class="pc bpc" id="L29" title="1 of 2 branches missed.">        val u = usuario ?: return</span>
+<span class="pc bpc" id="L30" title="2 of 4 branches missed.">        if (u.rol==&quot;PACIENTE&quot; &amp;&amp; u.email!=email) return</span>
+<span class="pc bpc" id="L31" title="1 of 2 branches missed.">        observacion?.cancel(); seleccionado=email; mensajes=emptyList(); error=null; texto=&quot;&quot;</span>
+<span class="pc" id="L32">        observacion=viewModelScope.launch { repo.observar(email).collect { mensajes=it } }</span>
+<span class="fc" id="L33">    }</span>
+    fun enviar() {
+<span class="pc bpc" id="L35" title="1 of 2 branches missed.">        val paciente=seleccionado ?: return</span>
+<span class="pc bpc" id="L36" title="2 of 4 branches missed.">        if(enviando || texto.isBlank()) return</span>
+<span class="fc" id="L37">        val contenido=texto; enviando=true</span>
+<span class="fc" id="L38">        viewModelScope.launch {</span>
+<span class="fc" id="L39">            try { repo.enviar(paciente,contenido); texto=&quot;&quot;; error=null }</span>
+<span class="nc bnc" id="L40" title="All 2 branches missed.">            catch(e:Exception){error=e.message ?: &quot;No se pudo guardar el mensaje&quot;}</span>
+<span class="fc" id="L41">            finally { enviando=false }</span>
+<span class="fc" id="L42">        }</span>
+<span class="fc" id="L43">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

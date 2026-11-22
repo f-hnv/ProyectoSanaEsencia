@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ViewModelFactory.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.example.sanaesencia.viewmodel</a> &gt; <span class="el_source">ViewModelFactory.kt</span></div><h1>ViewModelFactory.kt</h1><pre class="source lang-java linenums">package com.example.sanaesencia.viewmodel
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import com.example.sanaesencia.data.local.seed.SeedData
+import com.example.sanaesencia.di.AppContainer
+
+
+<span class="nc" id="L9">class ViewModelFactory(</span>
+<span class="nc" id="L10">    private val container: AppContainer,</span>
+<span class="nc bnc" id="L11" title="All 2 branches missed.">    private val emailPaciente: String = container.emailPacienteActual.orEmpty()</span>
+<span class="nc" id="L12">) : ViewModelProvider.Factory {</span>
+
+    @Suppress(&quot;UNCHECKED_CAST&quot;)
+<span class="nc" id="L15">    override fun &lt;T : ViewModel&gt; create(modelClass: Class&lt;T&gt;): T = when {</span>
+<span class="nc bnc" id="L16" title="All 2 branches missed.">        modelClass.isAssignableFrom(CatalogoViewModel::class.java) -&gt;</span>
+<span class="nc" id="L17">            CatalogoViewModel(container.catalogoRepository) as T</span>
+
+<span class="nc bnc" id="L19" title="All 2 branches missed.">        modelClass.isAssignableFrom(AgendaViewModel::class.java) -&gt;</span>
+<span class="nc" id="L20">            AgendaViewModel(container.citaRepository, container.servicioRepository, container.especialistaRepository,</span>
+<span class="nc" id="L21">                emailPaciente, container.catalogoRepository) as T</span>
+
+<span class="nc bnc" id="L23" title="All 2 branches missed.">        modelClass.isAssignableFrom(SedeViewModel::class.java) -&gt;</span>
+<span class="nc" id="L24">            SedeViewModel(container.locationHelper) as T</span>
+
+<span class="nc bnc" id="L26" title="All 2 branches missed.">        modelClass.isAssignableFrom(RutasViewModel::class.java) -&gt;</span>
+<span class="nc" id="L27">            RutasViewModel(container.rutasRepository) as T</span>
+<span class="nc bnc" id="L28" title="All 2 branches missed.">        modelClass.isAssignableFrom(ReservaServidorViewModel::class.java) -&gt;</span>
+<span class="nc" id="L29">            ReservaServidorViewModel(container) as T</span>
+<span class="nc bnc" id="L30" title="All 2 branches missed.">        modelClass.isAssignableFrom(ListaReservasViewModel::class.java) -&gt;</span>
+<span class="nc" id="L31">            ListaReservasViewModel(container.reservasRepository) as T</span>
+<span class="nc bnc" id="L32" title="All 2 branches missed.">        modelClass.isAssignableFrom(AdministracionReservasViewModel::class.java) -&gt;</span>
+<span class="nc" id="L33">            AdministracionReservasViewModel(container.reservasRepository) as T</span>
+<span class="nc bnc" id="L34" title="All 2 branches missed.">        modelClass.isAssignableFrom(HorariosServidorViewModel::class.java) -&gt;</span>
+<span class="nc" id="L35">            HorariosServidorViewModel(container.reservasRepository) as T</span>
+
+<span class="nc" id="L37">        else -&gt; throw IllegalArgumentException(&quot;ViewModel desconocido: ${modelClass.name}&quot;)</span>
+<span class="nc" id="L38">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

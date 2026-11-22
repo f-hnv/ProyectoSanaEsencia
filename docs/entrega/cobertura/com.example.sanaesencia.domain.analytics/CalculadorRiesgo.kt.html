@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CalculadorRiesgo.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.example.sanaesencia.domain.analytics</a> &gt; <span class="el_source">CalculadorRiesgo.kt</span></div><h1>CalculadorRiesgo.kt</h1><pre class="source lang-java linenums">package com.example.sanaesencia.domain.analytics
+
+import com.example.sanaesencia.data.local.relation.ResumenPaciente
+import com.example.sanaesencia.domain.model.AlertaDesercion
+import com.example.sanaesencia.domain.model.NivelRiesgo
+import kotlin.math.roundToInt
+
+object CalculadorRiesgo {
+
+    private const val MS_POR_DIA = 86_400_000L
+    private const val PUNTOS_POR_INASISTENCIA = 20
+    private const val MAX_PUNTOS_INASISTENCIAS = 40
+    private const val MAX_PUNTOS_CANCELACIONES = 30
+    private const val MIN_CITAS_PARA_TASA = 2     // evita penalizar una única cancelación
+    private const val UMBRAL_ALTO = 60
+    private const val UMBRAL_MEDIO = 30
+
+    /** Devuelve null si el paciente aún no tiene citas pasadas (no hay historial que evaluar). */
+    fun evaluar(resumen: ResumenPaciente, ahora: Long): AlertaDesercion? {
+<span class="fc" id="L20">        val citasResueltas = resumen.completadas + resumen.canceladas + resumen.inasistencias</span>
+<span class="fc bfc" id="L21" title="All 2 branches covered.">        if (citasResueltas == 0) return null</span>
+
+<span class="pc bpc" id="L23" title="1 of 4 branches missed.">        val referencia = resumen.ultimaAtencion ?: resumen.primeraCita ?: ahora</span>
+<span class="fc" id="L24">        val diasSinAtencion = ((ahora - referencia) / MS_POR_DIA).toInt().coerceAtLeast(0)</span>
+<span class="fc" id="L25">        val tasaCancelacion = resumen.canceladas.toDouble() / citasResueltas</span>
+
+<span class="fc" id="L27">        val ptsInasistencias =</span>
+<span class="fc" id="L28">            (resumen.inasistencias * PUNTOS_POR_INASISTENCIA).coerceAtMost(MAX_PUNTOS_INASISTENCIAS)</span>
+
+<span class="fc" id="L30">        val ptsCancelaciones =</span>
+<span class="fc bfc" id="L31" title="All 2 branches covered.">            if (citasResueltas &gt;= MIN_CITAS_PARA_TASA) (tasaCancelacion * MAX_PUNTOS_CANCELACIONES).roundToInt()</span>
+<span class="fc" id="L32">            else 0</span>
+
+        // Si ya tiene una cita futura agendada sigue comprometido: la inactividad no suma.
+<span class="fc bfc" id="L35" title="All 2 branches covered.">        val ptsInactividad = if (resumen.futuras &gt; 0) 0 else when {</span>
+<span class="fc bfc" id="L36" title="All 2 branches covered.">            diasSinAtencion &gt;= 60 -&gt; 30</span>
+<span class="fc bfc" id="L37" title="All 2 branches covered.">            diasSinAtencion &gt;= 45 -&gt; 20</span>
+<span class="fc bfc" id="L38" title="All 2 branches covered.">            diasSinAtencion &gt;= 30 -&gt; 10</span>
+<span class="fc" id="L39">            else -&gt; 0</span>
+        }
+
+<span class="fc" id="L42">        val puntaje = (ptsInasistencias + ptsCancelaciones + ptsInactividad).coerceIn(0, 100)</span>
+
+<span class="fc" id="L44">        val motivos = buildList {</span>
+<span class="fc bfc" id="L45" title="All 2 branches covered.">            if (ptsInasistencias &gt; 0) {</span>
+<span class="fc" id="L46">                add(&quot;${resumen.inasistencias} inasistencia(s)&quot;)</span>
+            }
+<span class="fc bfc" id="L48" title="All 2 branches covered.">            if (ptsCancelaciones &gt; 0) {</span>
+<span class="fc" id="L49">                add(&quot;Cancela el ${(tasaCancelacion * 100).roundToInt()}% de sus citas&quot;)</span>
+            }
+<span class="fc bfc" id="L51" title="All 2 branches covered.">            if (ptsInactividad &gt; 0) {</span>
+<span class="fc" id="L52">                add(&quot;Sin atención hace $diasSinAtencion días y sin cita agendada&quot;)</span>
+            }
+<span class="fc" id="L54">        }</span>
+
+<span class="fc" id="L56">        return AlertaDesercion(</span>
+<span class="fc" id="L57">            emailPaciente = resumen.emailPaciente,</span>
+<span class="fc" id="L58">            puntaje = puntaje,</span>
+<span class="fc" id="L59">            nivel = when {</span>
+<span class="fc bfc" id="L60" title="All 2 branches covered.">                puntaje &gt;= UMBRAL_ALTO -&gt; NivelRiesgo.ALTO</span>
+<span class="fc bfc" id="L61" title="All 2 branches covered.">                puntaje &gt;= UMBRAL_MEDIO -&gt; NivelRiesgo.MEDIO</span>
+<span class="fc" id="L62">                else -&gt; NivelRiesgo.BAJO</span>
+            },
+<span class="fc" id="L64">            motivos = motivos,</span>
+<span class="fc" id="L65">            completadas = resumen.completadas,</span>
+<span class="fc" id="L66">            canceladas = resumen.canceladas,</span>
+<span class="fc" id="L67">            inasistencias = resumen.inasistencias,</span>
+<span class="fc" id="L68">            citasFuturas = resumen.futuras,</span>
+<span class="fc" id="L69">            diasSinAtencion = diasSinAtencion</span>
+        )
+    }
+}
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

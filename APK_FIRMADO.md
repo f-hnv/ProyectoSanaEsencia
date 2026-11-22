@@ -1,6 +1,6 @@
 # APK release firmado de SanaEsencia
 
-Versión: 1.2, versionCode 3. Paquete: com.example.sanaesencia. Android mínimo: 7.0 (API 24). El dispositivo de prueba de la estudiante es una Lenovo Tab P11 con Android 14, sin una instalación anterior de SanaEsencia.
+Versión actual: 1.3, versionCode 4. Paquete: com.example.sanaesencia. Android mínimo: 7.0 (API 24). La estudiante instaló la versión 1.2 en una Lenovo Tab P11 con Android 14; la 1.3 utiliza la misma firma y puede instalarse como actualización.
 
 ## Firma y respaldo privado
 

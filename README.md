@@ -1,4 +1,105 @@
-# Sanaesencia
+# SanaEsencia — Evaluación Parcial 4, DSY1105
+
+Aplicación Android académica con Kotlin/Jetpack Compose, tres microservicios Spring Boot y MySQL en AWS. Consulta servicios del centro, gestiona reservas y muestra el recorrido a la sede. No es el sistema oficial de Sanaesencia ni realiza reservas en Medilink.
+
+## Equipo
+
+Grupo 4: **Felipe Andres Araya Henriquez** y **Antonia Sofia Munoz Pizarro**.
+
+## APK y ejecución
+
+- Versión **1.3**, código 4, Android mínimo **7.0 / API 24**.
+- [Archivo APK firmado](entregables/SanaEsencia-1.3.apk).
+- Descarga: https://54.204.182.160/descargas/SanaEsencia-1.3.apk
+- SHA-256: `2f5094b11e9bad836021d4f4ce540a6273e9ca1b15bfd7c501c18c8b3e6759e5`.
+
+Descargar y abrir el APK. Sobre la 1.2, aceptar Actualizar sin desinstalar. Se requiere internet y AWS activo; la PC de desarrollo no necesita estar encendida. Hacer commit no actualiza una APK instalada.
+
+Para ejecutar el código: abrir la carpeta raíz en Android Studio, instalar SDK API 37 y sincronizar. El wrapper usa Gradle 9.6.0 y el daemon JDK 25 configurado en el proyecto. Ejecutar `app` en un dispositivo API 24+. Registrar una cuenta propia; no se publica una contraseña administradora.
+
+```powershell
+.\gradlew.bat :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
+```
+
+## Funcionalidades actuales
+
+| Área | Implementación |
+| --- | --- |
+| Usuarios | Registro y login en AWS; validación del RUN; BCrypt en el servidor; roles PACIENTE, ESPECIALISTA y ADMIN. |
+| Catálogo | Servicios y profesionales reales de referencia desde ms-catalogo; copia de lectura en Room. |
+| Agenda | Solo fechas con cupos disponibles para el profesional y modalidad en los próximos 61 días. |
+| Reservas | Crear, listar, reprogramar conservando el ID y cancelar; persistencia central en MySQL. |
+| Cruces y boxes | Se evitan cruces del paciente, profesional y box; el servidor asigna box para citas presenciales. Online no usa box. |
+| Especialista | Agenda mensual con paciente, fecha, hora, modalidad, box y estado; configuración de disponibilidad. |
+| Administración | Vincular cuentas a fichas profesionales, gestionar boxes, agendas y citas. |
+| API externa | Recorrido TrueWay con distancia/duración. Retrofit llama a ms-reservas y el servidor protege la clave de RapidAPI. |
+| Dispositivo | GPS, permisos, cámara/galería y apertura de mapas/WhatsApp. |
+
+Cancelar requiere al menos **12 horas** de anticipación. Las fechas y horas publicadas se copiaron de la agenda web consultada el 22/11/2026: 120 cupos para 15 profesionales; no se inventaron cupos para los demás. Incluye los días y horas observados en esa consulta. Los precios/duraciones pertenecen al proyecto. **No existe sincronización con Medilink** y los cupos deben actualizarse cuando venzan.
+
+El registro crea PACIENTES. Para vincular una profesional: el administrador busca su número de cuenta, comprueba el correo y asigna ESPECIALISTA con el ID de su ficha del catálogo. Ella cierra sesión y vuelve a entrar. Escribir el mismo nombre no otorga permisos.
+
+## Conexiones y endpoints
+
+```text
+Android → ViewModel → Repository → Retrofit → HTTPS/Nginx en AWS
+  /usuarios/ → ms-usuarios :8080 → sanaesencia_usuarios
+  /catalogo/ → ms-catalogo :8081 → sanaesencia_catalogo
+  /reservas/ → ms-reservas :8082 → sanaesencia_reservas
+                                  └→ TrueWay / RapidAPI
+```
+
+Base pública: `https://54.204.182.160/`. Las URL están en `app/build.gradle.kts`. Basic Auth se transmite mediante HTTPS; las credenciales de sesión están en memoria. No se implementó JWT.
+
+| Servicio | Endpoint relativo a su URL base | Uso |
+| --- | --- | --- |
+| Usuarios | `POST api/usuarios/registro`, `POST api/usuarios/login` | Registro y acceso. |
+| Usuarios | `GET/PUT/DELETE api/usuarios/{id}` | Consultar, editar o desactivar cuenta autorizada. |
+| Usuarios | `PATCH api/admin/usuarios/{id}/rol` | Vincular rol y especialistaId. |
+| Catálogo | `GET api/servicios`, `GET api/especialistas` | Servicios y profesionales. |
+| Reservas | `GET api/agenda/{id}`, `GET api/disponibilidad` | Agenda publicada y disponibilidad efectiva. |
+| Reservas | `GET/POST api/reservas` | Citas del mes y creación. |
+| Reservas | `PUT/DELETE api/reservas/{id}` | Reprogramar y cancelar. |
+| Reservas | `PATCH api/reservas/{id}/estado` | Estado de atención según permisos. |
+| Reservas | `POST api/rutas/sede` | Distancia y duración de TrueWay mediante el servidor. |
+
+Proveedor externo: `GET https://trueway-directions2.p.rapidapi.com/FindDrivingRoute`, parámetro `stops` y encabezados X-RapidAPI-Host / X-RapidAPI-Key. La clave está en el entorno privado de AWS, **no en el APK ni en Git**. Android consume el proxy propio con Retrofit; Spring Boot consulta TrueWay. Este recorrido se documenta para contrastarlo con el requisito de API externa de la pauta.
+
+Backend: [Sanaesencia-Microservicios](https://github.com/AMunozPSo/Sanaesencia-Microservicios), ramas `ms-usuarios`, `ms-catalogo` y `ms-reservas`.
+
+Room versión 5 conserva recursos locales y una copia del catálogo con vínculos explícitos de IDs. Las reservas nuevas pertenecen al servidor; el historial local se muestra aparte. Los mensajes de esta versión permanecen en cada dispositivo y no constituyen un chat entre teléfonos.
+
+## Firma y pruebas
+
+La APK 1.3 está firmada con JKS, RSA 3072, alias `sanaesencia`. La configuración está en `app/build.gradle.kts`; `generar-apk-firmado.ps1` carga la llave privada y ejecuta assembleRelease y lintRelease. La llave y su contraseña se conservan fuera de Git, en `%LOCALAPPDATA%/SanaEsencia/firma-release`.
+
+```powershell
+.\generar-apk-firmado.ps1
+.\gradlew.bat :app:createDebugUnitTestCoverageReport
+```
+
+El 22/11/2026 pasaron **92 pruebas unitarias**. También se verificaron el selector visual de fechas, el recorrido real TrueWay por AWS y la reserva/reprogramación/cancelación contra AWS. La APK pasó compilación release, lint, firma, ausencia de secretos y comparación SHA-256 de su descarga. Las cuentas temporales se desactivan y las citas de prueba quedan canceladas. La estudiante confirmó instalar la 1.2; queda confirmar el flujo de la 1.3 en un dispositivo físico.
+
+**Cobertura JaCoCo de lógica:** 86,87% de líneas (1224/1409), 81,75% de instrucciones (15399/18837) y 61,08% de ramas (954/1562). Incluye todos los archivos de `viewmodel`, `data/repository`, `domain` y `utils`, incluidos sus tipos auxiliares. No es un porcentaje de toda la interfaz Compose ni afirma 80% de ramas. Se usa `includeNoLocationClasses` para contar también las clases cargadas por Robolectric. El informe se genera en `app/build/reports/jacoco/logica/index.html` y `app/build/reports/jacoco/logica.xml`.
+
+```powershell
+.\gradlew.bat :app:verificarCoberturaLogica
+```
+
+La verificación falla si las líneas o instrucciones de esos paquetes bajan del 80%. Las pruebas nuevas cubren validación de cuentas, permisos, perfiles, persistencia con Room, sincronización del catálogo, cruces, reprogramación, disponibilidad, estados de ViewModel, riesgo de abandono y ubicación.
+
+Evidencias para revisar sin ejecutar Gradle: [reporte HTML de cobertura](docs/entrega/cobertura/index.html), [XML de cobertura](docs/entrega/cobertura-logica.xml), [cifras resumidas](docs/entrega/resultado-cobertura.json) y [certificado de firma verificado](docs/entrega/FIRMA_VERIFICADA.txt).
+
+![Evidencia técnica del APK firmado y del almacén JKS](docs/entrega/evidencia-apk-firma.png)
+
+El equipo informa avances compartidos en **Microsoft Teams**, sin tablero Trello previo. Debe conservar esa evidencia real y completar o aclarar con la docente el requisito explícito de Trello, sin atribuir fechas inexistentes.
+
+Documentación actual: [guía PDF de estudio y defensa](docs/entrega/Guia_SanaEsencia.pdf), [conexión Android/backend](CONEXION_BACKEND.md), [AWS](CONEXION_AWS.md) y [APK/firma](APK_FIRMADO.md). Antes de defender: activar Learner Lab y EC2, comprobar HTTPS/servicios, mantener cupos vigentes y probar el APK entregado. La IP elástica no enciende el servidor.
+
+<details>
+<summary>Documentación histórica de la Evaluación Parcial 2 — no describe la versión actual</summary>
+
+# Sanaesencia (prototipo anterior)
 
 Aplicación Android de demostración para consultar servicios, reservar sesiones y orientar la llegada al Centro Integrativo Sanaesencia de Los Vilos. Desarrollada como proyecto académico de **DSY1105 — Desarrollo de Aplicaciones Móviles**, Evaluación Parcial 2.
 
@@ -185,4 +286,6 @@ La carpeta [docs/semana9](docs/semana9) incluye también versiones Markdown edit
 - Abrir WhatsApp, el navegador o mapas depende de las aplicaciones disponibles y de la conectividad del dispositivo.
 
 El [sitio del centro](https://centrosanaesencia.cl/) se utilizó como referencia de contexto. Este repositorio corresponde a una solución académica y no a un sistema oficial de reservas.
+
+</details>
 

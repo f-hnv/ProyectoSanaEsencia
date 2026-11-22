@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CitaRepository.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.example.sanaesencia.data.repository</a> &gt; <span class="el_source">CitaRepository.kt</span></div><h1>CitaRepository.kt</h1><pre class="source lang-java linenums">package com.example.sanaesencia.data.repository
+
+import android.database.sqlite.SQLiteConstraintException
+import androidx.room.withTransaction
+import com.example.sanaesencia.data.local.AppDatabase
+import com.example.sanaesencia.data.local.entity.CitaEntity
+import com.example.sanaesencia.data.local.relation.CitaConDetalle
+import com.example.sanaesencia.domain.model.ErrorAgenda
+import com.example.sanaesencia.domain.model.EstadoCita
+import com.example.sanaesencia.domain.model.Modalidad
+import com.example.sanaesencia.domain.model.Resultado
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.combine
+import com.example.sanaesencia.domain.model.HorariosAgenda
+
+<span class="pc" id="L17">class CitaRepository(</span>
+<span class="fc" id="L18">    private val db: AppDatabase,</span>
+    // Reloj inyectable: permite probar la lógica con una hora fija.
+<span class="pc" id="L20">    private val ahora: () -&gt; Long = { System.currentTimeMillis() }</span>
+<span class="nc" id="L21">) {</span>
+<span class="fc" id="L22">    private val citaDao = db.citaDao()</span>
+<span class="fc" id="L23">    private val servicioDao = db.servicioDao()</span>
+<span class="fc" id="L24">    private val especialistaDao = db.especialistaDao()</span>
+
+    fun observarPorPaciente(email: String): Flow&lt;List&lt;CitaConDetalle&gt;&gt; =
+<span class="fc" id="L27">        citaDao.observarPorPaciente(email)</span>
+
+    fun observarProximas(email: String): Flow&lt;List&lt;CitaConDetalle&gt;&gt; =
+<span class="fc" id="L30">        citaDao.observarProximas(email, ahora())</span>
+
+<span class="fc" id="L32">    suspend fun agendar(</span>
+        emailPaciente: String,
+        servicioId: Long,
+        especialistaId: Long,
+        fechaHoraInicio: Long,
+        modalidad: Modalidad,
+<span class="fc" id="L38">        notas: String = &quot;&quot;</span>
+<span class="fc" id="L39">    ): Resultado&lt;Long&gt; = db.withTransaction&lt;Resultado&lt;Long&gt;&gt; {</span>
+        // withTransaction: validar traslapes e insertar ocurre como una unidad atómica,
+        // así dos agendamientos simultáneos no pueden colarse entre la validación y el insert.
+
+<span class="fc bfc" id="L43" title="All 2 branches covered.">        if (fechaHoraInicio &lt;= ahora()) {</span>
+<span class="fc" id="L44">            return@withTransaction Resultado.Error(ErrorAgenda.FechaPasada)</span>
+        }
+
+<span class="pc bpc" id="L47" title="1 of 6 branches missed.">        val servicio = servicioDao.obtenerPorId(servicioId)?.takeIf { it.activo }</span>
+<span class="fc" id="L48">            ?: return@withTransaction Resultado.Error(ErrorAgenda.ServicioNoDisponible)</span>
+
+<span class="fc bfc" id="L50" title="All 2 branches covered.">        if (fechaHoraInicio - ahora() &lt; HorariosAgenda.ANTICIPACION_MS)</span>
+<span class="fc" id="L51">            return@withTransaction Resultado.Error(ErrorAgenda.AnticipacionInsuficiente)</span>
+<span class="fc bfc" id="L52" title="All 2 branches covered.">        if (!HorariosAgenda.esBloqueValido(fechaHoraInicio, servicio.duracionMin))</span>
+<span class="fc" id="L53">            return@withTransaction Resultado.Error(ErrorAgenda.HorarioFueraAtencion)</span>
+
+<span class="pc bpc" id="L55" title="1 of 6 branches missed.">        val especialista = especialistaDao.obtenerPorId(especialistaId)?.takeIf { it.activo }</span>
+<span class="fc" id="L56">            ?: return@withTransaction Resultado.Error(ErrorAgenda.EspecialistaNoDisponible)</span>
+
+<span class="pc bpc" id="L58" title="1 of 6 branches missed.">        if ((modalidad == Modalidad.ONLINE &amp;&amp; (!servicio.permiteOnline || !especialista.permiteOnline)) ||</span>
+<span class="pc bpc" id="L59" title="1 of 4 branches missed.">            (modalidad == Modalidad.PRESENCIAL &amp;&amp; !especialista.permitePresencial)) {</span>
+<span class="fc" id="L60">            return@withTransaction Resultado.Error(ErrorAgenda.ModalidadNoDisponible)</span>
+        }
+
+        // Validación de traslapes de rango: [inicio, fin) contra citas no canceladas.
+<span class="fc" id="L64">        val fin = fechaHoraInicio + servicio.duracionMin * 60_000L</span>
+<span class="fc bfc" id="L65" title="All 4 branches covered.">        if (citaDao.buscarTraslapes(especialistaId, fechaHoraInicio, fin).isNotEmpty()) {</span>
+<span class="fc" id="L66">            return@withTransaction Resultado.Error(ErrorAgenda.HorarioOcupado)</span>
+        }
+
+<span class="fc" id="L69">        val ocupacion = citaDao.ocupacion(fechaHoraInicio, fin)</span>
+<span class="fc bfc" id="L70" title="All 2 branches covered.">        if (ocupacion.any { it.emailPaciente.equals(emailPaciente, true) })</span>
+<span class="fc" id="L71">            return@withTransaction Resultado.Error(ErrorAgenda.PacienteOcupado)</span>
+<span class="fc" id="L72">        val servicios = db.centroDao().serviciosDeEspecialista(especialistaId)</span>
+<span class="pc bpc" id="L73" title="4 of 6 branches missed.">        if (servicios.isNotEmpty() &amp;&amp; servicioId !in servicios)</span>
+<span class="nc" id="L74">            return@withTransaction Resultado.Error(ErrorAgenda.EspecialistaNoDisponible)</span>
+<span class="fc bfc" id="L75" title="All 2 branches covered.">        val box = if (modalidad == Modalidad.PRESENCIAL) db.centroDao().boxesActivos().shuffled()</span>
+<span class="pc bpc" id="L76" title="2 of 4 branches missed.">            .firstOrNull { b -&gt; ocupacion.none { it.boxId == b.id } } else null</span>
+<span class="fc bfc" id="L77" title="All 4 branches covered.">        if (modalidad == Modalidad.PRESENCIAL &amp;&amp; box == null)</span>
+<span class="fc" id="L78">            return@withTransaction Resultado.Error(ErrorAgenda.SinBox)</span>
+
+<span class="fc" id="L80">        val cita = CitaEntity(</span>
+<span class="fc" id="L81">            emailPaciente = emailPaciente,</span>
+<span class="fc" id="L82">            servicioId = servicioId,</span>
+<span class="fc" id="L83">            especialistaId = especialistaId,</span>
+<span class="fc" id="L84">            fechaHoraInicio = fechaHoraInicio,</span>
+<span class="fc" id="L85">            duracionMin = servicio.duracionMin,</span>
+<span class="fc" id="L86">            modalidad = modalidad,</span>
+<span class="fc" id="L87">            notas = notas,</span>
+<span class="fc bfc" id="L88" title="All 2 branches covered.">            boxId = box?.id,</span>
+<span class="fc" id="L89">            creadaEn = ahora(),</span>
+<span class="fc" id="L90">            actualizadaEn = ahora()</span>
+        )
+
+<span class="fc" id="L93">        try {</span>
+<span class="fc" id="L94">            Resultado.Exito(citaDao.insertar(cita))</span>
+<span class="nc" id="L95">        } catch (e: SQLiteConstraintException) {</span>
+            // Las validaciones y la inserción se mantienen dentro de la misma transacción.
+<span class="pc" id="L97">            Resultado.Error(ErrorAgenda.HorarioOcupado)</span>
+<span class="fc" id="L98">        }</span>
+<span class="fc" id="L99">    }</span>
+
+<span class="fc" id="L101">    suspend fun cancelar(citaId: Long): Resultado&lt;Unit&gt; = db.withTransaction {</span>
+<span class="fc bfc" id="L102" title="All 4 branches covered.">        val cita = citaDao.obtenerDetallePorId(citaId)?.cita</span>
+<span class="fc" id="L103">            ?: return@withTransaction Resultado.Error(ErrorAgenda.CitaNoEncontrada)</span>
+
+<span class="fc bfc" id="L105" title="All 2 branches covered.">        if (cita.estado != EstadoCita.PROGRAMADA) {</span>
+<span class="fc" id="L106">            return@withTransaction Resultado.Error(ErrorAgenda.EstadoInvalido)</span>
+        }
+<span class="fc bfc" id="L108" title="All 2 branches covered.">        if (cita.fechaHoraInicio - ahora() &lt; HorariosAgenda.ANTICIPACION_MS)</span>
+<span class="fc" id="L109">            return@withTransaction Resultado.Error(ErrorAgenda.CambioFueraPlazo)</span>
+
+<span class="fc" id="L111">        citaDao.actualizarEstado(citaId, EstadoCita.CANCELADA, ahora())</span>
+<span class="fc" id="L112">        Resultado.Exito(Unit)</span>
+<span class="fc" id="L113">    }</span>
+    // Obtiene una cita específica para cargarla en la pantalla de edición
+    suspend fun obtenerDetallePorId(citaId: Long): CitaConDetalle? {
+<span class="fc" id="L116">        return citaDao.obtenerDetallePorId(citaId)</span>
+    }
+
+    // Valida y actualiza la fecha de una cita existente
+<span class="fc" id="L120">    suspend fun reprogramar(citaId: Long, nuevaFechaHora: Long, nuevaModalidad: Modalidad? = null): Resultado&lt;Unit&gt; = db.withTransaction {</span>
+<span class="fc bfc" id="L121" title="All 4 branches covered.">        val cita = citaDao.obtenerDetallePorId(citaId)?.cita</span>
+<span class="fc" id="L122">            ?: return@withTransaction Resultado.Error(ErrorAgenda.CitaNoEncontrada)</span>
+
+<span class="fc bfc" id="L124" title="All 2 branches covered.">        if (cita.estado != EstadoCita.PROGRAMADA) return@withTransaction Resultado.Error(ErrorAgenda.EstadoInvalido)</span>
+<span class="fc bfc" id="L125" title="All 2 branches covered.">        if (nuevaFechaHora &lt;= ahora()) return@withTransaction Resultado.Error(ErrorAgenda.FechaPasada)</span>
+<span class="pc bpc" id="L126" title="1 of 2 branches missed.">        if (cita.fechaHoraInicio - ahora() &lt; HorariosAgenda.ANTICIPACION_MS)</span>
+<span class="nc" id="L127">            return@withTransaction Resultado.Error(ErrorAgenda.CambioFueraPlazo)</span>
+<span class="pc bpc" id="L128" title="1 of 2 branches missed.">        if (nuevaFechaHora - ahora() &lt; HorariosAgenda.ANTICIPACION_MS)</span>
+<span class="nc" id="L129">            return@withTransaction Resultado.Error(ErrorAgenda.AnticipacionInsuficiente)</span>
+<span class="fc bfc" id="L130" title="All 2 branches covered.">        if (!HorariosAgenda.esBloqueValido(nuevaFechaHora, cita.duracionMin))</span>
+<span class="fc" id="L131">            return@withTransaction Resultado.Error(ErrorAgenda.HorarioFueraAtencion)</span>
+
+<span class="pc bpc" id="L133" title="1 of 2 branches missed.">        val modalidad = nuevaModalidad ?: cita.modalidad</span>
+<span class="pc bpc" id="L134" title="1 of 2 branches missed.">        val especialista = especialistaDao.obtenerPorId(cita.especialistaId)</span>
+<span class="nc" id="L135">            ?: return@withTransaction Resultado.Error(ErrorAgenda.EspecialistaNoDisponible)</span>
+<span class="pc bpc" id="L136" title="5 of 10 branches missed.">        if ((modalidad == Modalidad.ONLINE &amp;&amp; (servicioDao.obtenerPorId(cita.servicioId)?.permiteOnline != true || !especialista.permiteOnline)) ||</span>
+<span class="pc bpc" id="L137" title="3 of 4 branches missed.">            (modalidad == Modalidad.PRESENCIAL &amp;&amp; !especialista.permitePresencial))</span>
+<span class="nc" id="L138">            return@withTransaction Resultado.Error(ErrorAgenda.ModalidadNoDisponible)</span>
+
+<span class="fc" id="L140">        val fin = nuevaFechaHora + cita.duracionMin * 60_000L</span>
+<span class="fc" id="L141">        val traslapes = citaDao.buscarTraslapes(cita.especialistaId, nuevaFechaHora, fin)</span>
+
+        // Verificamos que no choque con otra cita (ignorando la cita actual que estamos moviendo)
+<span class="pc bpc" id="L144" title="3 of 4 branches missed.">        if (traslapes.any { it.id != citaId }) {</span>
+<span class="nc" id="L145">            return@withTransaction Resultado.Error(ErrorAgenda.HorarioOcupado)</span>
+        }
+
+<span class="pc bnc" id="L148" title="All 2 branches missed.">        val ocupacion = citaDao.ocupacion(nuevaFechaHora, fin).filter { it.id != citaId }</span>
+<span class="pc bpc" id="L149" title="1 of 2 branches missed.">        if (ocupacion.any { it.emailPaciente.equals(cita.emailPaciente, true) })</span>
+<span class="nc" id="L150">            return@withTransaction Resultado.Error(ErrorAgenda.PacienteOcupado)</span>
+<span class="pc bpc" id="L151" title="1 of 2 branches missed.">        val box = if (modalidad == Modalidad.PRESENCIAL) db.centroDao().boxesActivos().shuffled()</span>
+<span class="pc bnc" id="L152" title="All 4 branches missed.">            .firstOrNull { b -&gt; ocupacion.none { it.boxId == b.id } } else null</span>
+<span class="pc bpc" id="L153" title="3 of 4 branches missed.">        if (modalidad == Modalidad.PRESENCIAL &amp;&amp; box == null)</span>
+<span class="nc" id="L154">            return@withTransaction Resultado.Error(ErrorAgenda.SinBox)</span>
+<span class="pc bpc" id="L155" title="1 of 2 branches missed.">        citaDao.actualizar(cita.copy(fechaHoraInicio = nuevaFechaHora, modalidad = modalidad, boxId = box?.id, actualizadaEn = ahora()))</span>
+<span class="fc" id="L156">        Resultado.Exito(Unit)</span>
+<span class="fc" id="L157">    }</span>
+
+<span class="fc" id="L159">    fun observarHorariosDisponibles(</span>
+<span class="nc" id="L160">        dia: Long, especialistaId: Long, duracionMin: Int, citaEditandoId: Long? = null,</span>
+<span class="pc" id="L161">        emailPaciente: String? = null, modalidad: Modalidad = Modalidad.PRESENCIAL</span>
+<span class="fc" id="L162">    ): Flow&lt;List&lt;Long&gt;&gt; = combine(</span>
+<span class="fc" id="L163">        citaDao.observarTodaOcupacion(HorariosAgenda.inicioDia(dia), HorariosAgenda.siguienteDia(dia)),</span>
+<span class="fc" id="L164">        db.centroDao().observarBoxesActivos()</span>
+    ) { citas, boxes -&gt;
+<span class="fc" id="L166">        HorariosAgenda.bloquesDelDia(dia, duracionMin).filter { inicio -&gt;</span>
+<span class="fc" id="L167">            val fin = inicio + duracionMin * 60_000L</span>
+<span class="pc bpc" id="L168" title="2 of 6 branches missed.">            val ocupadas = citas.filter { it.id != citaEditandoId &amp;&amp; it.fechaHoraInicio &lt; fin &amp;&amp;</span>
+<span class="fc bfc" id="L169" title="All 2 branches covered.">                it.fechaHoraInicio + it.duracionMin * 60_000L &gt; inicio }</span>
+<span class="pc bpc" id="L170" title="1 of 2 branches missed.">            inicio - ahora() &gt;= HorariosAgenda.ANTICIPACION_MS &amp;&amp;</span>
+<span class="fc bfc" id="L171" title="All 4 branches covered.">                ocupadas.none { it.especialistaId == especialistaId ||</span>
+<span class="pc bpc" id="L172" title="2 of 4 branches missed.">                    (emailPaciente != null &amp;&amp; it.emailPaciente.equals(emailPaciente, true)) } &amp;&amp;</span>
+<span class="pc bpc" id="L173" title="2 of 8 branches missed.">                (modalidad == Modalidad.ONLINE || boxes.any { box -&gt; ocupadas.none { it.boxId == box.id } })</span>
+<span class="fc" id="L174">        }</span>
+<span class="fc" id="L175">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

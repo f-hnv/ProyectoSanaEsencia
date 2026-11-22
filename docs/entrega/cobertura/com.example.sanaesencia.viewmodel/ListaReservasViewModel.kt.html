@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ListaReservasViewModel.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.example.sanaesencia.viewmodel</a> &gt; <span class="el_source">ListaReservasViewModel.kt</span></div><h1>ListaReservasViewModel.kt</h1><pre class="source lang-java linenums">package com.example.sanaesencia.viewmodel
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.sanaesencia.data.remote.ReservaRemota
+import com.example.sanaesencia.data.repository.ReservasRepository
+import com.example.sanaesencia.domain.model.PeriodoAgenda
+import com.example.sanaesencia.utils.FechasReservas
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
+
+<span class="fc" id="L12">data class ListaReservasState(val periodo:PeriodoAgenda=PeriodoAgenda.desde(),val citas:List&lt;ReservaRemota&gt; = emptyList(),</span>
+<span class="pc" id="L13">    val cargando:Boolean=true,val error:String?=null,val mensaje:String?=null,val ocupada:Boolean=false)</span>
+<span class="fc" id="L14">class ListaReservasViewModel(private val repo:ReservasRepository):ViewModel() {</span>
+<span class="fc" id="L15">    private val _estado=MutableStateFlow(ListaReservasState());val estado=_estado.asStateFlow()</span>
+    private var consulta:Job?=null
+<span class="pc" id="L17">    init { cargar();viewModelScope.launch { repo.cambios.collect { cargar() } } }</span>
+<span class="pc bpc" id="L18" title="1 of 2 branches missed.">    fun mes(delta:Int) { if(!_estado.value.ocupada) { _estado.update { it.copy(periodo=it.periodo.desplazar(delta),citas=emptyList()) };cargar() } }</span>
+    fun cargar() {
+<span class="fc bfc" id="L20" title="All 2 branches covered.">        consulta?.cancel(); val mes=FechasReservas.mes(_estado.value.periodo)</span>
+<span class="fc" id="L21">        _estado.update { it.copy(cargando=true,error=null) }</span>
+<span class="fc" id="L22">        consulta=viewModelScope.launch {</span>
+<span class="fc" id="L23">            try { val citas=repo.listar(mes);_estado.update { it.copy(cargando=false,citas=citas) } }</span>
+<span class="nc" id="L24">            catch(e:CancellationException) { throw e }</span>
+<span class="pc bpc" id="L25" title="1 of 2 branches missed.">            catch(e:Exception) { _estado.update { it.copy(cargando=false,citas=emptyList(),error=e.message ?: &quot;No se pudieron cargar las citas&quot;) } }</span>
+<span class="fc" id="L26">        }</span>
+<span class="fc" id="L27">    }</span>
+<span class="fc" id="L28">    fun cambiarEstado(id:Long,atendida:Boolean=false) {</span>
+<span class="pc bpc" id="L29" title="1 of 2 branches missed.">        if(_estado.value.ocupada) return</span>
+<span class="fc" id="L30">        _estado.update { it.copy(ocupada=true,mensaje=null) }</span>
+<span class="fc" id="L31">        viewModelScope.launch {</span>
+<span class="fc bfc" id="L32" title="All 2 branches covered.">            try { if(atendida) repo.atender(id) else repo.cancelar(id)</span>
+<span class="fc bfc" id="L33" title="All 2 branches covered.">                _estado.update { it.copy(mensaje=if(atendida) &quot;Sesión marcada como atendida&quot; else &quot;Reserva cancelada&quot;) };cargar()</span>
+<span class="nc" id="L34">            } catch(e:CancellationException) { throw e }</span>
+<span class="nc bnc" id="L35" title="All 2 branches missed.">            catch(e:Exception) { _estado.update { it.copy(mensaje=e.message ?: &quot;Revisa el estado de la cita antes de reintentar&quot;) };cargar() }</span>
+<span class="fc" id="L36">            finally { _estado.update { it.copy(ocupada=false) } }</span>
+<span class="fc" id="L37">        }</span>
+<span class="fc" id="L38">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

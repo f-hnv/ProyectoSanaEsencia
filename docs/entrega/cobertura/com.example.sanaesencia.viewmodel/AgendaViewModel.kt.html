@@ -1,0 +1,316 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AgendaViewModel.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.example.sanaesencia.viewmodel</a> &gt; <span class="el_source">AgendaViewModel.kt</span></div><h1>AgendaViewModel.kt</h1><pre class="source lang-java linenums">package com.example.sanaesencia.viewmodel
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.sanaesencia.data.local.entity.EspecialistaEntity
+import com.example.sanaesencia.data.local.entity.ServicioEntity
+import com.example.sanaesencia.data.local.relation.CitaConDetalle
+import com.example.sanaesencia.data.repository.CitaRepository
+import com.example.sanaesencia.data.repository.ServicioRepository
+import com.example.sanaesencia.data.repository.EspecialistaRepository
+import com.example.sanaesencia.domain.model.ErrorAgenda
+import com.example.sanaesencia.domain.model.Modalidad
+import com.example.sanaesencia.domain.model.Resultado
+import com.example.sanaesencia.utils.ErroresFormularioAgenda
+import com.example.sanaesencia.utils.ValidacionesAgenda
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
+import com.example.sanaesencia.domain.model.HorariosAgenda
+import com.example.sanaesencia.data.repository.CatalogoRepository
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.first
+
+sealed interface EstadoOperacion {
+    data object Inactivo : EstadoOperacion
+    data object Cargando : EstadoOperacion
+<span class="pc" id="L31">    data class Exito(val mensaje: String, val citaId: Long? = null) : EstadoOperacion</span>
+<span class="nc" id="L32">    data class Error(val error: ErrorAgenda) : EstadoOperacion</span>
+}
+
+<span class="fc" id="L35">data class AgendaUiState(</span>
+<span class="fc" id="L36">    val citaEditandoId: Long? = null, // Una cita existente activa la reprogramación; null representa una reserva nueva.</span>
+<span class="fc" id="L37">    val servicioSeleccionado: ServicioEntity? = null,</span>
+<span class="fc" id="L38">    val especialistaId: Long? = null,</span>
+<span class="fc" id="L39">    val especialistas: List&lt;EspecialistaEntity&gt; = emptyList(),</span>
+<span class="fc" id="L40">    val especialistaDeCita: EspecialistaEntity? = null,</span>
+<span class="fc" id="L41">    val cargandoEspecialistas: Boolean = true,</span>
+<span class="fc" id="L42">    val errorEspecialistas: String? = null,</span>
+<span class="fc" id="L43">    val fechaHoraInicio: Long? = null,</span>
+<span class="fc" id="L44">    val diaSeleccionado: Long? = null,</span>
+<span class="fc" id="L45">    val horariosDisponibles: List&lt;Long&gt; = emptyList(),</span>
+<span class="fc" id="L46">    val cargandoHorarios: Boolean = false,</span>
+<span class="pc" id="L47">    val errorHorarios: String? = null,</span>
+<span class="fc" id="L48">    val modalidad: Modalidad = Modalidad.PRESENCIAL,</span>
+<span class="fc" id="L49">    val notas: String = &quot;&quot;,</span>
+<span class="fc" id="L50">    val errores: ErroresFormularioAgenda = ErroresFormularioAgenda(),</span>
+<span class="fc" id="L51">    val operacion: EstadoOperacion = EstadoOperacion.Inactivo,</span>
+<span class="pc" id="L52">    val proximasCitas: List&lt;CitaConDetalle&gt; = emptyList(),</span>
+<span class="pc" id="L53">    val todasLasCitas: List&lt;CitaConDetalle&gt; = emptyList()</span>
+<span class="fc" id="L54">)</span>
+
+/** Gestiona el formulario de reserva, observa la disponibilidad y delega la persistencia al repositorio. */
+<span class="fc" id="L57">class AgendaViewModel(</span>
+<span class="fc" id="L58">    private val citaRepository: CitaRepository,</span>
+<span class="fc" id="L59">    private val servicioRepository: ServicioRepository,</span>
+<span class="fc" id="L60">    private val especialistaRepository: EspecialistaRepository,</span>
+<span class="fc" id="L61">    private val emailPaciente: String,</span>
+<span class="fc" id="L62">    private val catalogoRepository:CatalogoRepository?=null</span>
+<span class="fc" id="L63">) : ViewModel() {</span>
+
+<span class="fc" id="L65">    private val _uiState = MutableStateFlow(AgendaUiState())</span>
+<span class="fc" id="L66">    val uiState: StateFlow&lt;AgendaUiState&gt; = _uiState.asStateFlow()</span>
+    private var consultaHorarios: Job? = null
+    private var consultaEspecialistas: Job? = null
+
+<span class="fc" id="L70">    init {</span>
+<span class="fc" id="L71">        cargarEspecialistas()</span>
+<span class="fc" id="L72">        viewModelScope.launch {</span>
+<span class="fc" id="L73">            citaRepository.observarProximas(emailPaciente).collect { citas -&gt;</span>
+<span class="fc" id="L74">                _uiState.update { it.copy(proximasCitas = citas) }</span>
+<span class="fc" id="L75">            }</span>
+<span class="nc" id="L76">        }</span>
+<span class="fc" id="L77">        viewModelScope.launch {</span>
+<span class="fc" id="L78">            citaRepository.observarPorPaciente(emailPaciente).collect { citas -&gt;</span>
+<span class="fc" id="L79">                _uiState.update { it.copy(todasLasCitas = citas) }</span>
+<span class="fc" id="L80">            }</span>
+<span class="nc" id="L81">        }</span>
+<span class="fc" id="L82">    }</span>
+
+    fun cargarEspecialistas() {
+<span class="fc bfc" id="L85" title="All 2 branches covered.">        consultaEspecialistas?.cancel()</span>
+<span class="fc" id="L86">        _uiState.update { it.copy(cargandoEspecialistas = true, errorEspecialistas = null) }</span>
+<span class="fc" id="L87">        consultaEspecialistas = viewModelScope.launch {</span>
+<span class="fc bfc" id="L88" title="All 2 branches covered.">            especialistaRepository.observarParaServicio(_uiState.value.servicioSeleccionado?.id)</span>
+<span class="fc" id="L89">                .catch {</span>
+<span class="nc" id="L90">                    _uiState.update {</span>
+<span class="nc" id="L91">                        it.copy(cargandoEspecialistas = false, errorEspecialistas = &quot;No se pudieron cargar los especialistas&quot;)</span>
+                    }
+<span class="nc" id="L93">                }</span>
+<span class="fc" id="L94">                .collect { especialistas -&gt;</span>
+<span class="fc" id="L95">                    _uiState.update { actual -&gt;</span>
+                        // Una reserva nueva no puede conservar un profesional que dejó de estar activo.
+<span class="pc bpc" id="L97" title="1 of 2 branches missed.">                        val seleccionValida = actual.citaEditandoId != null ||</span>
+<span class="pc bpc" id="L98" title="1 of 6 branches missed.">                            especialistas.any { it.id == actual.especialistaId }</span>
+<span class="fc" id="L99">                        actual.copy(</span>
+<span class="fc" id="L100">                            especialistas = especialistas,</span>
+<span class="fc bfc" id="L101" title="All 2 branches covered.">                            especialistaId = actual.especialistaId.takeIf { seleccionValida },</span>
+<span class="fc" id="L102">                            cargandoEspecialistas = false,</span>
+<span class="fc" id="L103">                            errorEspecialistas = null</span>
+<span class="fc" id="L104">                        )</span>
+                    }
+<span class="fc" id="L106">                }</span>
+<span class="nc" id="L107">        }</span>
+<span class="fc" id="L108">    }</span>
+
+    // Carga los datos de la base de datos para mostrarlos en el formulario
+    fun prepararEdicion(citaId: Long) {
+<span class="fc" id="L112">        viewModelScope.launch {</span>
+<span class="pc bpc" id="L113" title="1 of 2 branches missed.">            val citaDetalle = citaRepository.obtenerDetallePorId(citaId) ?: return@launch</span>
+<span class="fc" id="L114">            val especialista = citaDetalle.especialista</span>
+<span class="fc" id="L115">            _uiState.update {</span>
+<span class="fc" id="L116">                it.copy(</span>
+<span class="fc" id="L117">                    citaEditandoId = citaId,</span>
+<span class="fc" id="L118">                    servicioSeleccionado = citaDetalle.servicio,</span>
+<span class="fc" id="L119">                    especialistaId = citaDetalle.cita.especialistaId,</span>
+<span class="fc" id="L120">                    especialistaDeCita = especialista,</span>
+<span class="fc" id="L121">                    fechaHoraInicio = citaDetalle.cita.fechaHoraInicio,</span>
+<span class="fc" id="L122">                    diaSeleccionado = HorariosAgenda.inicioDia(citaDetalle.cita.fechaHoraInicio),</span>
+<span class="fc" id="L123">                    modalidad = citaDetalle.cita.modalidad,</span>
+<span class="pc bpc" id="L124" title="1 of 2 branches missed.">                    notas = citaDetalle.cita.notas ?: &quot;&quot;,</span>
+<span class="fc" id="L125">                    errores = ErroresFormularioAgenda()</span>
+<span class="fc" id="L126">                )</span>
+            }
+<span class="fc" id="L128">            cargarHorarios()</span>
+<span class="fc" id="L129">        }</span>
+<span class="fc" id="L130">    }</span>
+
+<span class="fc" id="L132">    fun onServicioSeleccionado(servicioId: Long, especialistaPreseleccionado:Long?=null) {</span>
+<span class="fc" id="L133">        viewModelScope.launch {</span>
+<span class="fc" id="L134">            try {</span>
+<span class="fc" id="L135">            val servicio = servicioRepository.obtenerPorId(servicioId)</span>
+<span class="fc bfc" id="L136" title="All 2 branches covered.">            requireNotNull(servicio) { &quot;El servicio ya no está disponible. Actualiza el catálogo&quot; }</span>
+<span class="fc" id="L137">            val candidatos=especialistaRepository.observarParaServicio(servicioId).first()</span>
+<span class="pc bpc" id="L138" title="4 of 8 branches missed.">            val seleccionado=candidatos.find { it.id==especialistaPreseleccionado }</span>
+<span class="fc" id="L139">            _uiState.update {</span>
+<span class="fc" id="L140">                it.copy(</span>
+<span class="fc" id="L141">                    servicioSeleccionado = servicio,</span>
+<span class="fc" id="L142">                    especialistas = candidatos,</span>
+<span class="pc bpc" id="L143" title="1 of 2 branches missed.">                    especialistaId = seleccionado?.id,</span>
+<span class="fc" id="L144">                    fechaHoraInicio = null,</span>
+<span class="fc" id="L145">                    modalidad = when {</span>
+<span class="pc bpc" id="L146" title="2 of 4 branches missed.">                        seleccionado!=null &amp;&amp; !seleccionado.permitePresencial -&gt; Modalidad.ONLINE</span>
+<span class="pc bpc" id="L147" title="3 of 8 branches missed.">                        !servicio.permiteOnline || seleccionado?.permiteOnline==false -&gt; Modalidad.PRESENCIAL</span>
+<span class="fc" id="L148">                        else -&gt; it.modalidad</span>
+                    },
+<span class="fc" id="L150">                    errores = it.errores.copy(servicio = null, modalidad = null)</span>
+<span class="fc" id="L151">                )</span>
+            }
+<span class="fc" id="L153">            cargarEspecialistas()</span>
+<span class="fc" id="L154">            cargarHorarios()</span>
+<span class="pc bpc" id="L155" title="1 of 2 branches missed.">            if(seleccionado!=null) onEspecialistaSeleccionado(seleccionado.id)</span>
+<span class="nc" id="L156">            } catch(e:CancellationException) { throw e }</span>
+<span class="fc" id="L157">            catch(e:Exception) {</span>
+<span class="fc" id="L158">                _uiState.update { it.copy(servicioSeleccionado=null,especialistaId=null,cargandoEspecialistas=false,</span>
+<span class="pc bpc" id="L159" title="1 of 2 branches missed.">                    errorEspecialistas=e.message ?: &quot;No se pudo cargar la selección&quot;) }</span>
+            }
+<span class="fc" id="L161">        }</span>
+<span class="fc" id="L162">    }</span>
+
+    fun onEspecialistaSeleccionado(especialistaId: Long) {
+<span class="fc" id="L165">        val actual = _uiState.value</span>
+<span class="pc bpc" id="L166" title="2 of 4 branches missed.">        if (actual.citaEditandoId != null || actual.operacion is EstadoOperacion.Cargando ||</span>
+<span class="pc bpc" id="L167" title="2 of 4 branches missed.">            actual.especialistas.none { it.id == especialistaId }) return</span>
+<span class="pc bpc" id="L168" title="1 of 2 branches missed.">        val profesional = actual.especialistas.first { it.id == especialistaId }</span>
+<span class="fc" id="L169">        val modalidad = when {</span>
+<span class="pc bpc" id="L170" title="1 of 2 branches missed.">            !profesional.permitePresencial -&gt; Modalidad.ONLINE</span>
+<span class="pc bpc" id="L171" title="1 of 2 branches missed.">            !profesional.permiteOnline -&gt; Modalidad.PRESENCIAL</span>
+<span class="fc" id="L172">            else -&gt; actual.modalidad</span>
+        }
+<span class="fc" id="L174">        _uiState.update { it.copy(especialistaId = especialistaId, modalidad = modalidad, fechaHoraInicio = null,</span>
+<span class="fc" id="L175">            errores = it.errores.copy(especialista = null, fechaHora = null)) }</span>
+<span class="fc" id="L176">        cargarHorarios()</span>
+<span class="fc" id="L177">    }</span>
+
+    fun onDiaSeleccionado(dia: Long) {
+<span class="pc bpc" id="L180" title="1 of 2 branches missed.">        if (_uiState.value.operacion is EstadoOperacion.Cargando) return</span>
+<span class="fc" id="L181">        _uiState.update { it.copy(diaSeleccionado = HorariosAgenda.inicioDia(dia), fechaHoraInicio = null,</span>
+<span class="fc" id="L182">            errores = it.errores.copy(fechaHora = null)) }</span>
+<span class="fc" id="L183">        cargarHorarios()</span>
+<span class="fc" id="L184">    }</span>
+
+    fun onModalidadSeleccionada(modalidad: Modalidad) {
+<span class="fc" id="L187">        val actual = _uiState.value</span>
+<span class="pc bpc" id="L188" title="1 of 2 branches missed.">        if (actual.operacion is EstadoOperacion.Cargando) return</span>
+<span class="pc bpc" id="L189" title="2 of 8 branches missed.">        if (modalidad == Modalidad.ONLINE &amp;&amp; actual.servicioSeleccionado?.permiteOnline != true) return</span>
+<span class="pc bpc" id="L190" title="9 of 10 branches missed.">        val profesional = actual.especialistaDeCita ?: actual.especialistas.find { it.id == actual.especialistaId }</span>
+<span class="pc bpc" id="L191" title="4 of 8 branches missed.">        if (modalidad == Modalidad.ONLINE &amp;&amp; profesional?.permiteOnline == false) return</span>
+<span class="pc bpc" id="L192" title="7 of 8 branches missed.">        if (modalidad == Modalidad.PRESENCIAL &amp;&amp; profesional?.permitePresencial == false) return</span>
+<span class="fc" id="L193">        _uiState.update { it.copy(modalidad = modalidad, fechaHoraInicio = null, errores = it.errores.copy(modalidad = null)) }</span>
+<span class="fc" id="L194">        cargarHorarios()</span>
+<span class="fc" id="L195">    }</span>
+
+    fun cargarHorarios() {
+<span class="fc bfc" id="L198" title="All 2 branches covered.">        consultaHorarios?.cancel()</span>
+<span class="fc" id="L199">        val actual = _uiState.value</span>
+<span class="fc" id="L200">        _uiState.update { it.copy(horariosDisponibles = emptyList(), errorHorarios = null, cargandoHorarios = false) }</span>
+<span class="fc bfc" id="L201" title="All 2 branches covered.">        val dia = actual.diaSeleccionado ?: return</span>
+<span class="pc bpc" id="L202" title="1 of 2 branches missed.">        val especialistaId = actual.especialistaId ?: return</span>
+<span class="pc bpc" id="L203" title="1 of 2 branches missed.">        val servicio = actual.servicioSeleccionado ?: return</span>
+<span class="fc" id="L204">        _uiState.update { it.copy(cargandoHorarios = true) }</span>
+<span class="fc" id="L205">        consultaHorarios = viewModelScope.launch {</span>
+<span class="fc" id="L206">            citaRepository.observarHorariosDisponibles(dia, especialistaId, servicio.duracionMin, actual.citaEditandoId, emailPaciente, actual.modalidad)</span>
+<span class="pc" id="L207">                .catch { _uiState.update { it.copy(cargandoHorarios = false, errorHorarios = &quot;No se pudieron cargar los horarios&quot;) } }</span>
+<span class="fc" id="L208">                .collect { horarios -&gt;</span>
+<span class="fc" id="L209">                    _uiState.update { it.copy(horariosDisponibles = horarios, cargandoHorarios = false,</span>
+<span class="pc bpc" id="L210" title="1 of 4 branches missed.">                        fechaHoraInicio = it.fechaHoraInicio?.takeIf { fecha -&gt; fecha in horarios }) }</span>
+<span class="fc" id="L211">                }</span>
+<span class="nc" id="L212">        }</span>
+<span class="fc" id="L213">    }</span>
+
+    fun onFechaHoraSeleccionada(epochMillis: Long) {
+<span class="pc bpc" id="L216" title="1 of 2 branches missed.">        if (_uiState.value.operacion is EstadoOperacion.Cargando ||</span>
+<span class="pc bpc" id="L217" title="1 of 2 branches missed.">            epochMillis !in _uiState.value.horariosDisponibles) return</span>
+<span class="fc" id="L218">        _uiState.update { it.copy(fechaHoraInicio = epochMillis, errores = it.errores.copy(fechaHora = null)) }</span>
+<span class="fc" id="L219">    }</span>
+
+    fun confirmarAgendamiento() {
+<span class="fc" id="L222">        val actual = _uiState.value</span>
+<span class="pc bpc" id="L223" title="1 of 2 branches missed.">        if (actual.operacion is EstadoOperacion.Cargando) return</span>
+<span class="fc bfc" id="L224" title="All 2 branches covered.">        if (actual.citaEditandoId == null &amp;&amp;</span>
+<span class="pc bpc" id="L225" title="2 of 4 branches missed.">            (actual.cargandoEspecialistas || actual.errorEspecialistas != null)) return</span>
+
+<span class="fc bfc" id="L227" title="All 2 branches covered.">        val servicioId = actual.servicioSeleccionado?.id</span>
+<span class="fc" id="L228">        val especialistaId = actual.especialistaId</span>
+<span class="fc" id="L229">        val fechaHora = actual.fechaHoraInicio</span>
+
+<span class="fc" id="L231">        val errores = ValidacionesAgenda.validar(servicioId, especialistaId, fechaHora)</span>
+<span class="pc bpc" id="L232" title="3 of 8 branches missed.">        if (errores.hayErrores || servicioId == null || especialistaId == null || fechaHora == null) {</span>
+<span class="fc" id="L233">            _uiState.update { it.copy(errores = errores) }</span>
+<span class="fc" id="L234">            return</span>
+        }
+
+<span class="pc bpc" id="L237" title="2 of 4 branches missed.">        if (actual.cargandoHorarios || fechaHora !in actual.horariosDisponibles) {</span>
+<span class="nc" id="L238">            _uiState.update { it.copy(errores = it.errores.copy(fechaHora = &quot;Selecciona un horario disponible&quot;)) }</span>
+<span class="nc" id="L239">            return</span>
+        }
+
+<span class="fc" id="L242">        val ahora = System.currentTimeMillis()</span>
+<span class="fc" id="L243">        val doceHorasMilis = 12 * 60 * 60 * 1000L</span>
+<span class="pc bpc" id="L244" title="1 of 2 branches missed.">        if (fechaHora - ahora &lt; doceHorasMilis) {</span>
+<span class="nc" id="L245">            _uiState.update { it.copy(errores = it.errores.copy(fechaHora = &quot;Debes agendar o modificar con al menos 12 horas de anticipación&quot;)) }</span>
+<span class="nc" id="L246">            return</span>
+        }
+
+<span class="fc" id="L249">        _uiState.update { it.copy(errores = ErroresFormularioAgenda(), operacion = EstadoOperacion.Cargando) }</span>
+
+<span class="fc" id="L251">        viewModelScope.launch {</span>
+<span class="fc" id="L252">            try {</span>
+<span class="pc bpc" id="L253" title="5 of 6 branches missed.">                if(catalogoRepository!=null &amp;&amp; (actual.citaEditandoId==null || catalogoRepository.idServicioServidor(servicioId)!=null)) {</span>
+<span class="nc" id="L254">                    catalogoRepository.validarSeleccion(servicioId,especialistaId,actual.modalidad)</span>
+                }
+<span class="nc" id="L256">            } catch(e:CancellationException) { throw e }</span>
+<span class="nc" id="L257">            catch(e:Exception) {</span>
+<span class="nc bnc" id="L258" title="All 2 branches missed.">                _uiState.update { it.copy(operacion=EstadoOperacion.Error(ErrorAgenda.Catalogo(e.message ?: &quot;Actualiza el catálogo para continuar&quot;))) }</span>
+<span class="nc" id="L259">                return@launch</span>
+            }
+            // Una reserva nueva inserta una cita; la reprogramación actualiza la fecha de la cita existente.
+<span class="fc bfc" id="L262" title="All 2 branches covered.">            val resultado = if (actual.citaEditandoId != null) {</span>
+<span class="fc" id="L263">                citaRepository.reprogramar(actual.citaEditandoId, fechaHora, actual.modalidad)</span>
+            } else {
+<span class="fc" id="L265">                citaRepository.agendar(emailPaciente, servicioId, especialistaId, fechaHora, actual.modalidad, actual.notas.trim())</span>
+            }
+
+<span class="fc" id="L268">            when (resultado) {</span>
+<span class="pc bpc" id="L269" title="1 of 2 branches missed.">                is Resultado.Exito -&gt; {</span>
+<span class="pc bpc" id="L270" title="1 of 4 branches missed.">                    val id = actual.citaEditandoId ?: (resultado.datos as? Long)</span>
+<span class="pc bpc" id="L271" title="2 of 4 branches missed.">                    val confirmada = id?.let { citaRepository.obtenerDetallePorId(it)?.cita }</span>
+<span class="pc bpc" id="L272" title="1 of 4 branches missed.">                    val lugar = if (confirmada?.modalidad == Modalidad.ONLINE) &quot;Online · sin box&quot;</span>
+<span class="pc bpc" id="L273" title="3 of 6 branches missed.">                        else confirmada?.boxId?.let { &quot;Presencial · Box $it&quot; }.orEmpty()</span>
+<span class="fc" id="L274">                    _uiState.update {</span>
+<span class="fc" id="L275">                    it.copy(</span>
+<span class="fc bfc" id="L276" title="All 2 branches covered.">                        operacion = EstadoOperacion.Exito((if (actual.citaEditandoId != null) &quot;Cita reprogramada con éxito&quot; else &quot;Cita agendada correctamente&quot;) +</span>
+<span class="pc bpc" id="L277" title="1 of 2 branches missed.">                            if (lugar.isBlank()) &quot;&quot; else &quot;. $lugar&quot;, id),</span>
+<span class="fc" id="L278">                        servicioSeleccionado = null, especialistaId = null, fechaHoraInicio = null, citaEditandoId = null,</span>
+<span class="fc" id="L279">                        diaSeleccionado = null, horariosDisponibles = emptyList(), especialistaDeCita = null,</span>
+<span class="fc" id="L280">                        modalidad = Modalidad.PRESENCIAL, notas = &quot;&quot;</span>
+<span class="fc" id="L281">                    )</span>
+                }
+                }
+<span class="nc" id="L284">                is Resultado.Error -&gt; _uiState.update {</span>
+<span class="nc" id="L285">                    it.copy(operacion = EstadoOperacion.Error(resultado.error), errores = erroresDeCampo(resultado.error, it.errores))</span>
+                }
+            }
+<span class="fc" id="L288">        }</span>
+<span class="fc" id="L289">    }</span>
+
+    fun cancelarCita(citaId: Long) {
+<span class="pc bpc" id="L292" title="1 of 2 branches missed.">        if (_uiState.value.operacion is EstadoOperacion.Cargando) return</span>
+<span class="fc" id="L293">        _uiState.update { it.copy(operacion = EstadoOperacion.Cargando) }</span>
+<span class="fc" id="L294">        viewModelScope.launch {</span>
+<span class="fc" id="L295">            val nuevaOperacion = when (val resultado = citaRepository.cancelar(citaId)) {</span>
+<span class="pc bpc" id="L296" title="1 of 2 branches missed.">                is Resultado.Exito -&gt; EstadoOperacion.Exito(&quot;Cita cancelada correctamente&quot;, citaId)</span>
+<span class="nc" id="L297">                is Resultado.Error -&gt; EstadoOperacion.Error(resultado.error)</span>
+            }
+<span class="fc" id="L299">            _uiState.update { it.copy(operacion = nuevaOperacion) }</span>
+<span class="fc" id="L300">        }</span>
+<span class="fc" id="L301">    }</span>
+
+    fun resultadoConsumido() {
+<span class="fc" id="L304">        _uiState.update { it.copy(operacion = EstadoOperacion.Inactivo) }</span>
+<span class="fc" id="L305">    }</span>
+
+<span class="nc" id="L307">    private fun erroresDeCampo(error: ErrorAgenda, base: ErroresFormularioAgenda) = when (error) {</span>
+<span class="nc bnc" id="L308" title="All 10 branches missed.">        ErrorAgenda.PacienteOcupado, ErrorAgenda.SinBox, ErrorAgenda.FechaPasada, ErrorAgenda.HorarioOcupado, ErrorAgenda.HorarioFueraAtencion,</span>
+<span class="nc bnc" id="L309" title="All 4 branches missed.">        ErrorAgenda.AnticipacionInsuficiente, ErrorAgenda.CambioFueraPlazo -&gt; base.copy(fechaHora = error.mensaje)</span>
+<span class="nc bnc" id="L310" title="All 2 branches missed.">        ErrorAgenda.ServicioNoDisponible -&gt; base.copy(servicio = error.mensaje)</span>
+<span class="nc bnc" id="L311" title="All 2 branches missed.">        ErrorAgenda.EspecialistaNoDisponible -&gt; base.copy(especialista = error.mensaje)</span>
+<span class="nc bnc" id="L312" title="All 2 branches missed.">        ErrorAgenda.ModalidadNoDisponible -&gt; base.copy(modalidad = error.mensaje)</span>
+<span class="nc" id="L313">        else -&gt; base</span>
+<span class="nc" id="L314">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

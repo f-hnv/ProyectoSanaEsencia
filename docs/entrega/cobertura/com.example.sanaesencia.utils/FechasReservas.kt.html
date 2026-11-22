@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FechasReservas.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.example.sanaesencia.utils</a> &gt; <span class="el_source">FechasReservas.kt</span></div><h1>FechasReservas.kt</h1><pre class="source lang-java linenums">package com.example.sanaesencia.utils
+
+import com.example.sanaesencia.domain.model.PeriodoAgenda
+import java.text.SimpleDateFormat
+import java.util.*
+
+object FechasReservas {
+<span class="fc" id="L8">    private val zona:TimeZone get()=TimeZone.getTimeZone(&quot;America/Santiago&quot;)</span>
+<span class="fc" id="L9">    private fun formato(patron:String)=SimpleDateFormat(patron,Locale.forLanguageTag(&quot;es-CL&quot;)).apply { timeZone=zona; isLenient=false }</span>
+    fun instante(iso:String):Long {
+<span class="pc bpc" id="L11" title="1 of 2 branches missed.">        require(Regex(&quot;\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(:\\d{2}(\\.\\d{1,9})?)?&quot;).matches(iso)) { &quot;Fecha de reserva no válida&quot; }</span>
+<span class="pc bpc" id="L12" title="1 of 2 branches missed.">        val normal=if(iso.length==16) &quot;$iso:00&quot; else iso.take(19)</span>
+<span class="pc bpc" id="L13" title="1 of 2 branches missed.">        return requireNotNull(formato(&quot;yyyy-MM-dd'T'HH:mm:ss&quot;).parse(normal)).time</span>
+    }
+<span class="pc" id="L15">    fun mostrar(iso:String,patron:String=&quot;dd/MM/yyyy HH:mm&quot;)=formato(patron).format(Date(instante(iso)))</span>
+<span class="fc" id="L16">    fun mes(periodo:PeriodoAgenda)=String.format(Locale.ROOT,&quot;%04d-%02d&quot;,periodo.anio,periodo.mes)</span>
+<span class="fc" id="L17">    fun dias(ahora:Long=System.currentTimeMillis(),cantidad:Int=61):List&lt;String&gt; {</span>
+<span class="fc" id="L18">        val cal=Calendar.getInstance(zona).apply { timeInMillis=ahora; set(Calendar.HOUR_OF_DAY,12); set(Calendar.MINUTE,0); set(Calendar.SECOND,0); set(Calendar.MILLISECOND,0) }</span>
+<span class="fc" id="L19">        return (0 until cantidad).map { formato(&quot;yyyy-MM-dd&quot;).format(cal.time).also { cal.add(Calendar.DAY_OF_MONTH,1) } }</span>
+    }
+<span class="nc" id="L21">    fun diaVisible(dia:String)=mostrar(&quot;${dia}T12:00:00&quot;,&quot;EEE dd/MM&quot;)</span>
+    fun diaSemana(dia:String):String {
+<span class="fc" id="L23">        val cal=Calendar.getInstance(zona).apply { timeInMillis=instante(&quot;${dia}T12:00:00&quot;) }</span>
+<span class="fc" id="L24">        return listOf(&quot;SUNDAY&quot;,&quot;MONDAY&quot;,&quot;TUESDAY&quot;,&quot;WEDNESDAY&quot;,&quot;THURSDAY&quot;,&quot;FRIDAY&quot;,&quot;SATURDAY&quot;)[cal.get(Calendar.DAY_OF_WEEK)-1]</span>
+    }
+<span class="fc" id="L26">    fun futura(reserva:com.example.sanaesencia.data.remote.ReservaRemota,ahora:Long=System.currentTimeMillis())=</span>
+<span class="pc bpc" id="L27" title="2 of 4 branches missed.">        reserva.estado==&quot;CONFIRMADA&quot; &amp;&amp; instante(reserva.inicio)&gt;ahora</span>
+<span class="nc" id="L28">    fun cancelable(reserva:com.example.sanaesencia.data.remote.ReservaRemota,ahora:Long=System.currentTimeMillis())=</span>
+<span class="nc bnc" id="L29" title="All 4 branches missed.">        reserva.estado==&quot;CONFIRMADA&quot; &amp;&amp; instante(reserva.inicio)-ahora&gt;=12*60*60*1000L</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

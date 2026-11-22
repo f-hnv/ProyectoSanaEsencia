@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ValidacionRegistro.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.example.sanaesencia.utils</a> &gt; <span class="el_source">ValidacionRegistro.kt</span></div><h1>ValidacionRegistro.kt</h1><pre class="source lang-java linenums">package com.example.sanaesencia.utils
+
+object ValidacionRegistro {
+<span class="fc bfc" id="L4" title="All 6 branches covered.">    fun nombre(valor: String): String? = if (valor.trim().length !in 1..100) &quot;Ingresa entre 1 y 100 caracteres&quot; else null</span>
+<span class="fc bfc" id="L5" title="All 8 branches covered.">    fun clave(valor: String): String? = if (valor.length !in 8..64 || valor.toByteArray(Charsets.UTF_8).size &gt; 72)</span>
+<span class="fc" id="L6">        &quot;La contraseña debe tener entre 8 y 64 caracteres (máximo 72 bytes)&quot; else null</span>
+    fun run(valor: String): String? {
+<span class="fc bfc" id="L8" title="All 2 branches covered.">        if (!Regex(&quot;^[1-9][0-9]{6,7}-[0-9kK]$&quot;).matches(valor)) return &quot;Usa un RUN sin puntos y con guion: 12345678-5&quot;</span>
+<span class="fc" id="L9">        val cuerpo = valor.substringBefore('-')</span>
+<span class="fc" id="L10">        val suma = cuerpo.reversed().mapIndexed { i, c -&gt; c.digitToInt() * (2 + i % 6) }.sum()</span>
+<span class="fc bfc" id="L11" title="All 3 branches covered.">        val digito = when (val resto = 11 - suma % 11) { 11 -&gt; '0'; 10 -&gt; 'K'; else -&gt; ('0'.code + resto).toChar() }</span>
+<span class="fc bfc" id="L12" title="All 2 branches covered.">        return if (valor.last().uppercaseChar() == digito) null else &quot;El dígito verificador del RUN no es válido&quot;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

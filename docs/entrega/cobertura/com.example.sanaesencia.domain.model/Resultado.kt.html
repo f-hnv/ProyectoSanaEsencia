@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Resultado.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.example.sanaesencia.domain.model</a> &gt; <span class="el_source">Resultado.kt</span></div><h1>Resultado.kt</h1><pre class="source lang-java linenums">package com.example.sanaesencia.domain.model
+
+// Resultado tipado: el ViewModel decide qué mostrar sin depender de excepciones.
+sealed class Resultado&lt;out T&gt; {
+<span class="fc" id="L5">    data class Exito&lt;T&gt;(val datos: T) : Resultado&lt;T&gt;()</span>
+<span class="fc" id="L6">    data class Error(val error: ErrorAgenda) : Resultado&lt;Nothing&gt;()</span>
+}
+
+// Cada error trae el mensaje en español, listo para mostrar en la UI.
+<span class="pc" id="L10">sealed class ErrorAgenda(val mensaje: String) {</span>
+<span class="nc" id="L11">    data class Catalogo(val detalle:String):ErrorAgenda(detalle)</span>
+<span class="fc" id="L12">    data object PacienteOcupado : ErrorAgenda(&quot;Ya tienes una cita que coincide con este horario&quot;)</span>
+<span class="fc" id="L13">    data object SinBox : ErrorAgenda(&quot;No hay boxes disponibles en ese horario. Elige otra hora o modalidad online si está disponible&quot;)</span>
+<span class="fc" id="L14">    data object HorarioFueraAtencion : ErrorAgenda(&quot;Selecciona uno de los horarios disponibles del centro&quot;)</span>
+<span class="fc" id="L15">    data object AnticipacionInsuficiente : ErrorAgenda(&quot;La reserva requiere al menos 12 horas de anticipación&quot;)</span>
+<span class="fc" id="L16">    data object CambioFueraPlazo : ErrorAgenda(&quot;Solo puedes cancelar o reprogramar hasta 12 horas antes de tu cita&quot;)</span>
+<span class="fc" id="L17">    data object FechaPasada : ErrorAgenda(&quot;La fecha y hora deben ser futuras&quot;)</span>
+<span class="fc" id="L18">    data object ServicioNoDisponible : ErrorAgenda(&quot;El servicio seleccionado no está disponible&quot;)</span>
+<span class="fc" id="L19">    data object EspecialistaNoDisponible : ErrorAgenda(&quot;El especialista seleccionado no está disponible&quot;)</span>
+<span class="fc" id="L20">    data object ModalidadNoDisponible : ErrorAgenda(&quot;Este servicio no se ofrece en la modalidad elegida&quot;)</span>
+<span class="fc" id="L21">    data object HorarioOcupado : ErrorAgenda(&quot;El especialista ya tiene una cita en ese horario&quot;)</span>
+<span class="fc" id="L22">    data object CitaNoEncontrada : ErrorAgenda(&quot;La cita no existe&quot;)</span>
+<span class="fc" id="L23">    data object EstadoInvalido : ErrorAgenda(&quot;Solo se pueden cancelar citas programadas&quot;)</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MensajeRepository.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.example.sanaesencia.data.repository</a> &gt; <span class="el_source">MensajeRepository.kt</span></div><h1>MensajeRepository.kt</h1><pre class="source lang-java linenums">package com.example.sanaesencia.data.repository
+import android.content.Context
+import com.example.sanaesencia.data.local.entity.MensajeEntity
+
+/** Bandeja académica entre cuentas del mismo dispositivo, sin transporte remoto. */
+<span class="fc" id="L6">class MensajeRepository(context: Context) {</span>
+<span class="fc" id="L7">    private val cuenta = CuentaRepository(context)</span>
+<span class="fc" id="L8">    private val dao = cuenta.db.centroDao()</span>
+    suspend fun enviar(paciente: String, texto: String) {
+<span class="pc bpc" id="L10" title="1 of 2 branches missed.">        val u = cuenta.actual() ?: error(&quot;Inicia sesión&quot;)</span>
+<span class="pc bpc" id="L11" title="1 of 6 branches missed.">        require(u.email == paciente || u.rol != &quot;PACIENTE&quot;) { &quot;No puedes escribir en otra conversación&quot; }</span>
+<span class="pc bpc" id="L12" title="2 of 4 branches missed.">        require(dao.usuario(paciente)?.rol == &quot;PACIENTE&quot;) { &quot;Selecciona un paciente registrado&quot; }</span>
+<span class="pc bpc" id="L13" title="1 of 6 branches missed.">        require(texto.trim().length in 1..2000) { &quot;El mensaje debe tener entre 1 y 2000 caracteres&quot; }</span>
+<span class="fc" id="L14">        dao.insertarMensaje(MensajeEntity(pacienteEmail=paciente,remitenteEmail=u.email,</span>
+<span class="fc" id="L15">            remitenteNombre=u.nombre,texto=texto.trim()))</span>
+<span class="fc" id="L16">    }</span>
+<span class="fc" id="L17">    fun observar(paciente: String): kotlinx.coroutines.flow.Flow&lt;List&lt;MensajeEntity&gt;&gt; = kotlinx.coroutines.flow.flow {</span>
+<span class="pc bpc" id="L18" title="1 of 2 branches missed.">        val u=cuenta.actual() ?: error(&quot;Inicia sesión&quot;)</span>
+<span class="pc bpc" id="L19" title="1 of 6 branches missed.">        require(u.email==paciente || u.rol!=&quot;PACIENTE&quot;){&quot;No puedes leer otra conversación&quot;}</span>
+<span class="fc" id="L20">        dao.mensajes(paciente).collect { emit(it) }</span>
+<span class="pc" id="L21">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

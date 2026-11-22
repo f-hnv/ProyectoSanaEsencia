@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RegistroViewModel.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.example.sanaesencia.viewmodel</a> &gt; <span class="el_source">RegistroViewModel.kt</span></div><h1>RegistroViewModel.kt</h1><pre class="source lang-java linenums">package com.example.sanaesencia.viewmodel
+
+import android.content.Context
+import androidx.compose.runtime.State
+import androidx.compose.runtime.mutableStateOf
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
+import androidx.lifecycle.ViewModel
+
+/** Valida el formulario y registra al paciente en el servidor. */
+<span class="fc" id="L11">class RegistroViewModel : ViewModel() {</span>
+
+<span class="fc" id="L13">    private val _nombre = mutableStateOf(&quot;&quot;)</span>
+<span class="pc" id="L14">    val nombre: State&lt;String&gt; = _nombre</span>
+<span class="fc" id="L15">    private val _nombreError = mutableStateOf&lt;String?&gt;(null)</span>
+<span class="fc" id="L16">    val nombreError: State&lt;String?&gt; = _nombreError</span>
+<span class="fc" id="L17">    val apellido = mutableStateOf(&quot;&quot;)</span>
+<span class="pc" id="L18">    val apellidoError = mutableStateOf&lt;String?&gt;(null)</span>
+<span class="fc" id="L19">    val run = mutableStateOf(&quot;&quot;)</span>
+<span class="pc" id="L20">    val runError = mutableStateOf&lt;String?&gt;(null)</span>
+<span class="fc" id="L21">    val cargando = mutableStateOf(false)</span>
+<span class="fc" id="L22">    val errorGeneral = mutableStateOf&lt;String?&gt;(null)</span>
+
+    fun onApellidoChange(valor: String) {
+<span class="fc" id="L25">        apellido.value = valor</span>
+<span class="fc" id="L26">        apellidoError.value = com.example.sanaesencia.utils.ValidacionRegistro.nombre(valor)</span>
+<span class="fc" id="L27">    }</span>
+    fun onRunChange(valor: String) {
+<span class="fc" id="L29">        run.value = valor.uppercase()</span>
+<span class="fc" id="L30">        runError.value = com.example.sanaesencia.utils.ValidacionRegistro.run(run.value)</span>
+<span class="fc" id="L31">    }</span>
+
+<span class="fc" id="L33">    private val _email = mutableStateOf(&quot;&quot;)</span>
+<span class="pc" id="L34">    val email: State&lt;String&gt; = _email</span>
+<span class="fc" id="L35">    private val _emailError = mutableStateOf&lt;String?&gt;(null)</span>
+<span class="pc" id="L36">    val emailError: State&lt;String?&gt; = _emailError</span>
+
+<span class="fc" id="L38">    private val _password = mutableStateOf(&quot;&quot;)</span>
+<span class="fc" id="L39">    val password: State&lt;String&gt; = _password</span>
+<span class="fc" id="L40">    private val _passwordError = mutableStateOf&lt;String?&gt;(null)</span>
+<span class="pc" id="L41">    val passwordError: State&lt;String?&gt; = _passwordError</span>
+
+<span class="fc" id="L43">    private val _confirmPassword = mutableStateOf(&quot;&quot;)</span>
+<span class="fc" id="L44">    val confirmPassword: State&lt;String&gt; = _confirmPassword</span>
+<span class="fc" id="L45">    private val _confirmPasswordError = mutableStateOf&lt;String?&gt;(null)</span>
+<span class="fc" id="L46">    val confirmPasswordError: State&lt;String?&gt; = _confirmPasswordError</span>
+
+    fun onNombreChange(newValue: String) {
+<span class="fc" id="L49">        _nombre.value = newValue</span>
+<span class="fc" id="L50">        _nombreError.value = com.example.sanaesencia.utils.ValidacionRegistro.nombre(newValue)</span>
+<span class="fc" id="L51">    }</span>
+
+    fun onEmailChange(newValue: String) {
+<span class="fc" id="L54">        _email.value = newValue</span>
+<span class="fc" id="L55">        _emailError.value = com.example.sanaesencia.utils.ValidacionCuenta.correo(newValue)</span>
+<span class="fc" id="L56">    }</span>
+
+    fun onPasswordChange(newValue: String) {
+<span class="fc" id="L59">        _password.value = newValue</span>
+<span class="fc" id="L60">        _passwordError.value = com.example.sanaesencia.utils.ValidacionRegistro.clave(newValue)</span>
+<span class="fc bfc" id="L61" title="All 4 branches covered.">        if (_confirmPassword.value.isNotEmpty()) onConfirmPasswordChange(_confirmPassword.value)</span>
+<span class="fc" id="L62">    }</span>
+
+    fun onConfirmPasswordChange(newValue: String) {
+<span class="fc" id="L65">        _confirmPassword.value = newValue</span>
+<span class="fc bfc" id="L66" title="All 2 branches covered.">        if (newValue != _password.value) {</span>
+<span class="fc" id="L67">            _confirmPasswordError.value = &quot;Las contraseñas no coinciden&quot;</span>
+        } else {
+<span class="fc" id="L69">            _confirmPasswordError.value = null</span>
+        }
+<span class="fc" id="L71">    }</span>
+
+    fun registrar(context: Context, onSuccess: () -&gt; Unit) {
+<span class="pc bpc" id="L74" title="1 of 2 branches missed.">        if (cargando.value) return</span>
+<span class="fc" id="L75">        errorGeneral.value = null</span>
+<span class="fc" id="L76">        onNombreChange(_nombre.value)</span>
+<span class="fc" id="L77">        onApellidoChange(apellido.value)</span>
+<span class="fc" id="L78">        onRunChange(run.value)</span>
+<span class="fc" id="L79">        onEmailChange(_email.value)</span>
+<span class="fc" id="L80">        onPasswordChange(_password.value)</span>
+<span class="fc" id="L81">        onConfirmPasswordChange(_confirmPassword.value)</span>
+
+<span class="pc bpc" id="L83" title="3 of 8 branches missed.">        if (apellidoError.value == null &amp;&amp; runError.value == null &amp;&amp; _nombreError.value == null &amp;&amp; _emailError.value == null &amp;&amp;</span>
+<span class="pc bpc" id="L84" title="2 of 4 branches missed.">            _passwordError.value == null &amp;&amp; _confirmPasswordError.value == null &amp;&amp;</span>
+<span class="pc bpc" id="L85" title="4 of 8 branches missed.">            _nombre.value.isNotBlank() &amp;&amp; _email.value.isNotBlank() &amp;&amp;</span>
+<span class="pc bpc" id="L86" title="4 of 8 branches missed.">            _password.value.isNotBlank() &amp;&amp; _confirmPassword.value.isNotBlank()</span>
+        ) {
+<span class="fc" id="L88">            cargando.value = true</span>
+<span class="fc" id="L89">            viewModelScope.launch {</span>
+<span class="fc" id="L90">                try {</span>
+<span class="fc" id="L91">                    com.example.sanaesencia.data.repository.CuentaRepository(context)</span>
+<span class="fc" id="L92">                        .registrar(_nombre.value,_email.value,_password.value,apellido.value,run.value)</span>
+<span class="fc" id="L93">                    _password.value = &quot;&quot;</span>
+<span class="fc" id="L94">                    _confirmPassword.value = &quot;&quot;</span>
+<span class="fc" id="L95">                    onSuccess()</span>
+<span class="nc" id="L96">                } catch (e: kotlinx.coroutines.CancellationException) { throw e }</span>
+<span class="pc bpc" id="L97" title="1 of 2 branches missed.">                catch (e: Exception) { errorGeneral.value = e.message ?: &quot;No se pudo crear la cuenta&quot; }</span>
+<span class="fc" id="L98">                finally { cargando.value = false }</span>
+<span class="fc" id="L99">            }</span>
+        }
+<span class="fc" id="L101">    }</span>
+}
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

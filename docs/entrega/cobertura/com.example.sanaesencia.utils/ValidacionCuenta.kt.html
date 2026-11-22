@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ValidacionCuenta.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.example.sanaesencia.utils</a> &gt; <span class="el_source">ValidacionCuenta.kt</span></div><h1>ValidacionCuenta.kt</h1><pre class="source lang-java linenums">package com.example.sanaesencia.utils
+import android.util.Patterns
+object ValidacionCuenta {
+<span class="fc" id="L4">    fun correo(valor: String): String? = when {</span>
+<span class="fc bfc" id="L5" title="All 2 branches covered.">        valor.isBlank() -&gt; &quot;El correo es obligatorio&quot;</span>
+<span class="fc bfc" id="L6" title="All 2 branches covered.">        !Patterns.EMAIL_ADDRESS.matcher(valor.trim()).matches() -&gt; &quot;Ingresa un correo válido&quot;</span>
+<span class="fc" id="L7">        else -&gt; null</span>
+<span class="fc" id="L8">    }</span>
+<span class="fc" id="L9">    fun clave(valor: String): String? = when {</span>
+<span class="fc bfc" id="L10" title="All 2 branches covered.">        valor.isBlank() -&gt; &quot;La contraseña es obligatoria&quot;</span>
+<span class="fc bfc" id="L11" title="All 2 branches covered.">        valor.length &lt; 6 -&gt; &quot;Debe tener al menos 6 caracteres&quot;</span>
+<span class="fc" id="L12">        else -&gt; null</span>
+<span class="fc" id="L13">    }</span>
+<span class="fc bfc" id="L14" title="All 2 branches covered.">    fun telefono(valor: String): String? = if (valor.isBlank() ||</span>
+<span class="pc bpc" id="L15" title="3 of 12 branches missed.">        (valor.filter { it.isDigit() }.length in 8..15 &amp;&amp; valor.all { it.isDigit() || it in &quot;+ -()&quot; })) null</span>
+<span class="fc" id="L16">        else &quot;Ingresa un teléfono válido (8 a 15 dígitos)&quot;</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

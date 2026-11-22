@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>VistasCuenta.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.example.sanaesencia.domain.model</a> &gt; <span class="el_source">VistasCuenta.kt</span></div><h1>VistasCuenta.kt</h1><pre class="source lang-java linenums">package com.example.sanaesencia.domain.model
+
+/** Las cuentas se registran como pacientes; solo administración puede asignar el rol especialista. */
+object VistasCuenta {
+<span class="fc" id="L5">    fun puedeReservar(rol: String?) = rol == &quot;PACIENTE&quot;</span>
+<span class="fc" id="L6">    fun puedeAdministrar(rol: String?) = rol == &quot;ADMIN&quot;</span>
+<span class="fc" id="L7">    fun puedeVerRuta(rol: String?, ruta: String): Boolean = when {</span>
+<span class="pc bpc" id="L8" title="2 of 6 branches missed.">        ruta == &quot;home&quot; || ruta == &quot;perfil&quot; || ruta == &quot;mensajes&quot; -&gt; rol in setOf(&quot;PACIENTE&quot;, &quot;ESPECIALISTA&quot;, &quot;ADMIN&quot;)</span>
+<span class="fc bfc" id="L9" title="All 2 branches covered.">        ruta == &quot;administracion&quot; -&gt; puedeAdministrar(rol)</span>
+<span class="pc bpc" id="L10" title="1 of 4 branches missed.">        ruta == &quot;catalogo_servicios&quot; || ruta.startsWith(&quot;agenda&quot;) -&gt; puedeReservar(rol)</span>
+<span class="nc bnc" id="L11" title="All 4 branches missed.">        ruta == &quot;sede&quot; || ruta == &quot;contacto&quot; -&gt; rol in setOf(&quot;PACIENTE&quot;, &quot;ESPECIALISTA&quot;, &quot;ADMIN&quot;)</span>
+<span class="nc" id="L12">        else -&gt; false</span>
+<span class="fc" id="L13">    }</span>
+}
+
+object RecomendacionModalidad {
+    fun sugerirOnline(distanciaMetros: Double?, umbralKm: Float, permiteOnline: Boolean): Boolean =
+<span class="fc bfc" id="L18" title="All 8 branches covered.">        permiteOnline &amp;&amp; distanciaMetros != null &amp;&amp; distanciaMetros.isFinite() &amp;&amp;</span>
+<span class="pc bpc" id="L19" title="3 of 8 branches missed.">            umbralKm.isFinite() &amp;&amp; umbralKm &gt; 0 &amp;&amp; distanciaMetros &gt; umbralKm * 1000.0</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AlertasViewModel.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.example.sanaesencia.viewmodel</a> &gt; <span class="el_source">AlertasViewModel.kt</span></div><h1>AlertasViewModel.kt</h1><pre class="source lang-java linenums">package com.example.sanaesencia.viewmodel
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.sanaesencia.data.repository.AlertasRepository
+import com.example.sanaesencia.domain.model.AlertaDesercion
+import com.example.sanaesencia.domain.model.NivelRiesgo
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
+
+/**
+ * @property cargando        true hasta la primera lectura → progreso.
+ * @property filtro          nivel activo; null = todos.
+ * @property alertas         pacientes ya filtrados y ordenados de mayor a menor riesgo → lista.
+ *                           Cada AlertaDesercion trae puntaje (0..100), nivel, motivos (textos listos) y métricas.
+ * @property conteoPorNivel  cantidad de pacientes por nivel, SIN aplicar el filtro → chips/KPIs (siempre trae los 3 niveles).
+ * @property totalPacientes  pacientes con historial evaluado.
+ * @property error           mensaje si falló la carga; null si todo bien.
+ */
+<span class="fc" id="L24">data class AlertasUiState(</span>
+<span class="fc" id="L25">    val cargando: Boolean = true,</span>
+<span class="pc" id="L26">    val filtro: NivelRiesgo? = null,</span>
+<span class="fc" id="L27">    val alertas: List&lt;AlertaDesercion&gt; = emptyList(),</span>
+<span class="fc" id="L28">    val conteoPorNivel: Map&lt;NivelRiesgo, Int&gt; = emptyMap(),</span>
+<span class="fc" id="L29">    val totalPacientes: Int = 0,</span>
+<span class="pc" id="L30">    val error: String? = null</span>
+<span class="fc" id="L31">)</span>
+
+/**
+ * Filtra las alertas de continuidad de tratamiento y expone sus contadores por nivel de riesgo.
+ * Esta lógica aún no tiene una pantalla de administración conectada a la navegación.
+ */
+<span class="fc" id="L37">class AlertasViewModel(alertasRepository: AlertasRepository) : ViewModel() {</span>
+
+<span class="fc" id="L39">    private val filtro = MutableStateFlow&lt;NivelRiesgo?&gt;(null)</span>
+
+<span class="fc" id="L41">    val uiState: StateFlow&lt;AlertasUiState&gt; = combine(</span>
+<span class="fc" id="L42">        alertasRepository.observarAlertas(),</span>
+<span class="fc" id="L43">        filtro</span>
+    ) { todas, nivel -&gt;
+<span class="fc" id="L45">        AlertasUiState(</span>
+<span class="fc" id="L46">            cargando = false,</span>
+<span class="fc" id="L47">            filtro = nivel,</span>
+<span class="fc bfc" id="L48" title="All 4 branches covered.">            alertas = if (nivel == null) todas else todas.filter { it.nivel == nivel },</span>
+<span class="fc bfc" id="L49" title="All 2 branches covered.">            conteoPorNivel = NivelRiesgo.entries.associateWith { n -&gt; todas.count { it.nivel == n } },</span>
+<span class="fc" id="L50">            totalPacientes = todas.size</span>
+<span class="fc" id="L51">        )</span>
+    }
+<span class="pc" id="L53">        .catch { emit(AlertasUiState(cargando = false, error = &quot;No se pudieron calcular las alertas&quot;)) }</span>
+<span class="fc" id="L54">        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AlertasUiState())</span>
+
+    fun filtrarPorNivel(nivel: NivelRiesgo?) {
+<span class="fc" id="L57">        filtro.value = nivel</span>
+<span class="fc" id="L58">    }</span>
+}
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

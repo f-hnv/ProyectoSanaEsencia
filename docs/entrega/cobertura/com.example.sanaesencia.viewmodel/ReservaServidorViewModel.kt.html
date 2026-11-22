@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ReservaServidorViewModel.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.example.sanaesencia.viewmodel</a> &gt; <span class="el_source">ReservaServidorViewModel.kt</span></div><h1>ReservaServidorViewModel.kt</h1><pre class="source lang-java linenums">package com.example.sanaesencia.viewmodel
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.sanaesencia.data.remote.*
+import com.example.sanaesencia.data.repository.*
+import com.example.sanaesencia.domain.model.Modalidad
+import com.example.sanaesencia.di.AppContainer
+import com.example.sanaesencia.utils.FechasReservas
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
+
+<span class="fc" id="L13">data class ReservaServidorState(</span>
+<span class="pc" id="L14">    val cargando:Boolean=true, val ocupada:Boolean=false, val error:String?=null,</span>
+<span class="pc" id="L15">    val servicio:ServicioRemoto?=null, val profesionales:List&lt;EspecialistaRemoto&gt; = emptyList(),</span>
+<span class="fc" id="L16">    val especialistaId:Long?=null, val modalidad:Modalidad=Modalidad.PRESENCIAL,</span>
+<span class="fc" id="L17">    val dia:String?=null, val inicio:String?=null, val turnos:List&lt;TurnoRemoto&gt; = emptyList(),</span>
+<span class="pc" id="L18">    val cargandoTurnos:Boolean=false, val errorTurnos:String?=null,</span>
+<span class="fc" id="L19">    val diasDisponibles:List&lt;String&gt; = emptyList(), val cargandoDias:Boolean=false, val errorDias:String?=null,</span>
+<span class="fc" id="L20">    val recibo:ReservaRemota?=null, val ambigua:Boolean=false, val sugerencia:SugerenciaRemota?=null,</span>
+<span class="fc" id="L21">    val errorUbicacion:String?=null, val errorCarga:Boolean=false</span>
+<span class="fc" id="L22">)</span>
+
+<span class="fc" id="L24">class ReservaServidorViewModel(private val container:AppContainer):ViewModel() {</span>
+<span class="fc" id="L25">    private val repo=container.reservasRepository</span>
+<span class="fc" id="L26">    private val _estado=MutableStateFlow(ReservaServidorState())</span>
+<span class="fc" id="L27">    val estado=_estado.asStateFlow()</span>
+    private var edicion:Long?=null
+    private var carga:Job?=null
+    private var consulta:Job?=null
+    private var calendario:Job?=null
+    private var gps:Job?=null
+    private var coordenadas:Pair&lt;Double,Double&gt;?=null
+    private var entrada:Triple&lt;Long?,Long?,Long?&gt;?=null
+<span class="fc" id="L35">    val idsLocales=mutableMapOf&lt;Long,Long&gt;()</span>
+    fun preparar(servicioLocal:Long?,perfilLocal:Long?,reservaId:Long?) {
+<span class="fc" id="L37">        val clave=Triple(servicioLocal,perfilLocal,reservaId)</span>
+<span class="pc bpc" id="L38" title="1 of 4 branches missed.">        if(entrada==clave &amp;&amp; !_estado.value.errorCarga) return</span>
+<span class="pc bpc" id="L39" title="2 of 8 branches missed.">        entrada=clave; edicion=reservaId; carga?.cancel(); consulta?.cancel();calendario?.cancel();gps?.cancel()</span>
+<span class="fc" id="L40">        _estado.value=ReservaServidorState()</span>
+<span class="fc" id="L41">        carga=viewModelScope.launch {</span>
+<span class="fc" id="L42">            try {</span>
+<span class="fc bfc" id="L43" title="All 2 branches covered.">                val previa=reservaId?.let { repo.obtener(it) }</span>
+<span class="pc bpc" id="L44" title="1 of 4 branches missed.">                if(previa!=null &amp;&amp; !FechasReservas.futura(previa)) throw ErrorBackend(409,&quot;La cita ya no puede reprogramarse&quot;)</span>
+<span class="fc" id="L45">                val catalogo=container.catalogoRepository</span>
+<span class="fc" id="L46">                catalogo.exigirVigente()</span>
+<span class="pc bpc" id="L47" title="2 of 6 branches missed.">                val id=previa?.servicioId ?: servicioLocal?.let { catalogo.idServicioServidor(it) }</span>
+<span class="nc" id="L48">                    ?: throw ErrorBackend(409,&quot;Elige un servicio desde el catálogo actualizado&quot;)</span>
+<span class="fc" id="L49">                val servicio=llamadaBackend { container.catalogoApi.servicio(id) }</span>
+<span class="pc bpc" id="L50" title="4 of 8 branches missed.">                val perfiles=llamadaBackend { container.catalogoApi.especialistas(id) }.filter { it.activo &amp;&amp; it.servicios.any { s-&gt;s.id==id &amp;&amp; s.activo } }</span>
+<span class="pc bpc" id="L51" title="1 of 2 branches missed.">                require(servicio.activo) { &quot;El servicio no está disponible&quot; }</span>
+<span class="fc" id="L52">                idsLocales.clear()</span>
+<span class="pc bpc" id="L53" title="1 of 4 branches missed.">                for(p in perfiles) catalogo.idEspecialistaLocal(p.id)?.let { idsLocales[p.id]=it }</span>
+<span class="pc bpc" id="L54" title="1 of 4 branches missed.">                val elegido=previa?.especialistaId ?: perfilLocal?.let { catalogo.idEspecialistaServidor(it) }</span>
+<span class="pc bpc" id="L55" title="3 of 8 branches missed.">                val profesional=perfiles.find { it.id==elegido }</span>
+<span class="fc bfc" id="L56" title="All 4 branches covered.">                if(previa!=null &amp;&amp; profesional==null) throw ErrorBackend(409,&quot;El especialista ya no ofrece este servicio&quot;)</span>
+<span class="pc bpc" id="L57" title="3 of 10 branches missed.">                val modalidad=previa?.modalidad ?: if(profesional?.permitePresencial==false) Modalidad.ONLINE else Modalidad.PRESENCIAL</span>
+<span class="fc" id="L58">                _estado.value=ReservaServidorState(cargando=false,servicio=servicio,profesionales=perfiles,</span>
+<span class="pc bpc" id="L59" title="1 of 6 branches missed.">                    especialistaId=profesional?.id,modalidad=modalidad,dia=previa?.inicio?.take(10))</span>
+<span class="fc" id="L60">                cargarDias()</span>
+<span class="nc" id="L61">            } catch(e:CancellationException) { throw e }</span>
+<span class="pc bpc" id="L62" title="1 of 2 branches missed.">            catch(e:Exception) { _estado.value=ReservaServidorState(cargando=false,error=e.message ?: &quot;No se pudo preparar la reserva&quot;,errorCarga=true) }</span>
+<span class="fc" id="L63">        }</span>
+<span class="fc" id="L64">    }</span>
+<span class="pc bpc" id="L65" title="1 of 2 branches missed.">    fun reintentar() { entrada?.let { preparar(it.first,it.second,it.third) } }</span>
+    fun especialista(id:Long) {
+<span class="pc bpc" id="L67" title="3 of 4 branches missed.">        if(edicion!=null || _estado.value.ocupada) return</span>
+<span class="nc bnc" id="L68" title="All 8 branches missed.">        val p=_estado.value.profesionales.find { it.id==id } ?: return</span>
+<span class="nc bnc" id="L69" title="All 2 branches missed.">        _estado.update { it.copy(especialistaId=id,modalidad=if(p.permitePresencial) Modalidad.PRESENCIAL else Modalidad.ONLINE,inicio=null,error=null) }</span>
+<span class="nc" id="L70">        cargarDias(); ubicacion(coordenadas)</span>
+<span class="nc" id="L71">    }</span>
+    fun modalidad(m:Modalidad) {
+<span class="pc bpc" id="L73" title="1 of 2 branches missed.">        if(_estado.value.ocupada) return</span>
+<span class="fc" id="L74">        _estado.update { it.copy(modalidad=m,inicio=null,error=null) }; cargarDias()</span>
+<span class="fc" id="L75">    }</span>
+<span class="pc bpc" id="L76" title="2 of 6 branches missed.">    fun dia(d:String) { if(!_estado.value.ocupada &amp;&amp; !_estado.value.cargandoDias &amp;&amp; d in _estado.value.diasDisponibles) {</span>
+<span class="fc" id="L77">        _estado.update { it.copy(dia=d,inicio=null,error=null) }; cargarTurnos()</span>
+<span class="fc" id="L78">    } }</span>
+    fun cargarDias() {
+<span class="pc bpc" id="L80" title="1 of 4 branches missed.">        calendario?.cancel();consulta?.cancel()</span>
+<span class="fc" id="L81">        val s=_estado.value</span>
+<span class="fc" id="L82">        _estado.update { it.copy(diasDisponibles=emptyList(),turnos=emptyList(),inicio=null,</span>
+<span class="fc" id="L83">            errorDias=null,errorTurnos=null,cargandoTurnos=false,cargandoDias=false) }</span>
+<span class="pc bpc" id="L84" title="2 of 4 branches missed.">        val p=s.especialistaId ?: return;val servicio=s.servicio ?: return</span>
+<span class="fc" id="L85">        _estado.update { it.copy(cargandoDias=true) }</span>
+<span class="fc" id="L86">        calendario=viewModelScope.launch {</span>
+<span class="fc" id="L87">            try {</span>
+<span class="fc" id="L88">                val dias=repo.diasDisponibles(p,servicio.id,s.modalidad,edicion)</span>
+<span class="fc" id="L89">                ensureActive()</span>
+<span class="pc bpc" id="L90" title="1 of 4 branches missed.">                val elegido=s.dia?.takeIf { it in dias }</span>
+<span class="fc" id="L91">                _estado.update { it.copy(diasDisponibles=dias.keys.toList(),dia=elegido,</span>
+<span class="fc bfc" id="L92" title="All 2 branches covered.">                    turnos=dias[elegido].orEmpty(),cargandoDias=false) }</span>
+<span class="fc" id="L93">            } catch(e:CancellationException) { throw e }</span>
+<span class="pc bpc" id="L94" title="1 of 2 branches missed.">            catch(e:Exception) { _estado.update { it.copy(dia=null,cargandoDias=false,errorDias=e.message ?: &quot;No se pudieron consultar los días disponibles&quot;) } }</span>
+<span class="fc" id="L95">        }</span>
+<span class="fc" id="L96">    }</span>
+<span class="pc bpc" id="L97" title="1 of 4 branches missed.">    fun hora(inicio:String) { if(!_estado.value.ocupada &amp;&amp; _estado.value.turnos.any { it.inicio==inicio }) _estado.update { it.copy(inicio=inicio,error=null) } }</span>
+    fun cargarTurnos() {
+<span class="fc bfc" id="L99" title="All 2 branches covered.">        consulta?.cancel()</span>
+<span class="fc" id="L100">        val s=_estado.value</span>
+<span class="fc" id="L101">        _estado.update { it.copy(turnos=emptyList(),inicio=null,errorTurnos=null,cargandoTurnos=false) }</span>
+<span class="pc bpc" id="L102" title="3 of 6 branches missed.">        val p=s.especialistaId ?: return; val servicio=s.servicio ?: return; val dia=s.dia ?: return</span>
+<span class="fc" id="L103">        _estado.update { it.copy(cargandoTurnos=true) }</span>
+<span class="fc" id="L104">        consulta=viewModelScope.launch {</span>
+<span class="fc" id="L105">            try { val turnos=repo.disponibilidad(p,servicio.id,dia,s.modalidad,edicion)</span>
+<span class="fc" id="L106">                _estado.update { it.copy(turnos=turnos,cargandoTurnos=false,</span>
+<span class="fc bfc" id="L107" title="All 2 branches covered.">                    diasDisponibles=if(turnos.isEmpty()) it.diasDisponibles-dia else it.diasDisponibles,</span>
+<span class="fc bfc" id="L108" title="All 4 branches covered.">                    dia=dia.takeIf { turnos.isNotEmpty() }) }</span>
+<span class="nc" id="L109">            } catch(e:CancellationException) { throw e }</span>
+<span class="nc bnc" id="L110" title="All 2 branches missed.">            catch(e:Exception) { _estado.update { it.copy(cargandoTurnos=false,errorTurnos=e.message ?: &quot;No se pudo consultar disponibilidad&quot;) } }</span>
+<span class="fc" id="L111">        }</span>
+<span class="fc" id="L112">    }</span>
+    fun ubicacion(valor:Pair&lt;Double,Double&gt;?) {
+<span class="fc bfc" id="L114" title="All 2 branches covered.">        gps?.cancel(); coordenadas=valor</span>
+<span class="fc" id="L115">        _estado.update { it.copy(sugerencia=null,errorUbicacion=null) }</span>
+<span class="pc bpc" id="L116" title="2 of 4 branches missed.">        val s=_estado.value;val p=s.especialistaId ?: return;val servicio=s.servicio ?: return</span>
+<span class="fc bfc" id="L117" title="All 2 branches covered.">        if(valor==null) return</span>
+<span class="fc" id="L118">        gps=viewModelScope.launch {</span>
+<span class="fc" id="L119">            try { val sugerencia=repo.sugerencia(p,servicio.id,valor.first,valor.second); _estado.update { it.copy(sugerencia=sugerencia) } }</span>
+<span class="nc" id="L120">            catch(e:CancellationException) { throw e }</span>
+<span class="fc" id="L121">            catch(e:Exception) { _estado.update { it.copy(errorUbicacion=&quot;No se pudo consultar la recomendación. Puedes elegir la modalidad disponible.&quot;) } }</span>
+<span class="fc" id="L122">        }</span>
+<span class="fc" id="L123">    }</span>
+    fun guardar() {
+<span class="fc" id="L125">        val s=_estado.value</span>
+<span class="pc bpc" id="L126" title="2 of 10 branches missed.">        if(s.ocupada || s.ambigua || s.recibo!=null || s.inicio==null || s.turnos.none { it.inicio==s.inicio }) return</span>
+<span class="pc bpc" id="L127" title="2 of 4 branches missed.">        val id=s.servicio?.id ?: return;val perfil=s.especialistaId ?: return</span>
+<span class="fc" id="L128">        _estado.update { it.copy(ocupada=true,error=null) }</span>
+<span class="fc" id="L129">        viewModelScope.launch {</span>
+<span class="fc" id="L130">            try {</span>
+<span class="fc" id="L131">                val servicioActual=llamadaBackend { container.catalogoApi.servicio(id) }</span>
+<span class="fc" id="L132">                val perfilActual=llamadaBackend { container.catalogoApi.especialista(perfil) }</span>
+<span class="pc bpc" id="L133" title="5 of 10 branches missed.">                if(!servicioActual.activo || !perfilActual.activo || perfilActual.servicios.none {it.id==id &amp;&amp; it.activo})</span>
+<span class="nc" id="L134">                    throw ErrorBackend(409,&quot;La atención ya no está disponible. Vuelve a elegir desde el catálogo&quot;)</span>
+<span class="pc bpc" id="L135" title="1 of 4 branches missed.">                if(servicioActual.precio.compareTo(s.servicio!!.precio)!=0 || servicioActual.duracionMinutos!=s.servicio.duracionMinutos ||</span>
+<span class="pc bpc" id="L136" title="1 of 2 branches missed.">                    servicioActual.permiteOnline!=s.servicio.permiteOnline ||</span>
+<span class="pc bpc" id="L137" title="2 of 8 branches missed.">                    (s.modalidad==Modalidad.ONLINE &amp;&amp; !perfilActual.permiteOnline) || (s.modalidad==Modalidad.PRESENCIAL &amp;&amp; !perfilActual.permitePresencial)) {</span>
+<span class="fc" id="L138">                    _estado.update {it.copy(servicio=servicioActual)}</span>
+<span class="fc" id="L139">                    throw ErrorBackend(409,&quot;La atención cambió. Revisa el precio y la modalidad antes de elegir otra hora&quot;)</span>
+                }
+<span class="pc bpc" id="L141" title="2 of 4 branches missed.">                val r=repo.guardar(edicion,ReservaSolicitud(id,perfil,s.inicio,s.modalidad,coordenadas?.first,coordenadas?.second))</span>
+<span class="fc" id="L142">                _estado.update { it.copy(ocupada=false,recibo=r) }</span>
+<span class="nc" id="L143">            } catch(e:CancellationException) { throw e }</span>
+<span class="fc" id="L144">            catch(e:Exception) {</span>
+<span class="pc bpc" id="L145" title="3 of 8 branches missed.">                val incierta=e !is ErrorBackend || e.estado==null || (e.estado ?: 0)&gt;=500</span>
+<span class="fc bfc" id="L146" title="All 4 branches covered.">                _estado.update { it.copy(ocupada=false,ambigua=incierta,error=if(incierta)</span>
+<span class="fc" id="L147">                    &quot;No pudimos comprobar el resultado. Revisa tus citas antes de volver a reservar para evitar duplicados.&quot;</span>
+<span class="pc bpc" id="L148" title="1 of 2 branches missed.">                    else e.message ?: &quot;No se pudo guardar la reserva&quot;) }</span>
+<span class="fc bfc" id="L149" title="All 2 branches covered.">                if(!incierta) cargarTurnos()</span>
+            }
+<span class="fc" id="L151">        }</span>
+<span class="fc" id="L152">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

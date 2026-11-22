@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>HorariosAgenda.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.example.sanaesencia.domain.model</a> &gt; <span class="el_source">HorariosAgenda.kt</span></div><h1>HorariosAgenda.kt</h1><pre class="source lang-java linenums">package com.example.sanaesencia.domain.model
+
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
+import java.util.TimeZone
+
+/** Horario del centro, expresado en la zona de Chile, independiente de la zona del teléfono. */
+object HorariosAgenda {
+<span class="fc" id="L10">    val zona: TimeZone get() = TimeZone.getTimeZone(&quot;America/Santiago&quot;)</span>
+    const val ANTICIPACION_MS = 12 * 60 * 60 * 1000L
+    const val DESCRIPCION = &quot;Lunes a viernes · 09:00–18:00 · Almuerzo 13:00–14:00 · Hora de Chile&quot;
+
+<span class="fc" id="L14">    fun calendario(instante: Long) = Calendar.getInstance(zona).apply { timeInMillis = instante }</span>
+
+<span class="fc" id="L16">    fun inicioDia(instante: Long): Long = calendario(instante).apply {</span>
+<span class="fc" id="L17">        set(Calendar.HOUR_OF_DAY, 0)</span>
+<span class="fc" id="L18">        set(Calendar.MINUTE, 0)</span>
+<span class="fc" id="L19">        set(Calendar.SECOND, 0)</span>
+<span class="fc" id="L20">        set(Calendar.MILLISECOND, 0)</span>
+<span class="fc" id="L21">    }.timeInMillis</span>
+
+<span class="fc" id="L23">    fun siguienteDia(instante: Long): Long = calendario(inicioDia(instante)).apply {</span>
+<span class="fc" id="L24">        add(Calendar.DAY_OF_YEAR, 1)</span>
+<span class="fc" id="L25">    }.timeInMillis</span>
+
+    fun bloquesDelDia(dia: Long, duracionMin: Int): List&lt;Long&gt; {
+<span class="pc bpc" id="L28" title="1 of 2 branches missed.">        if (duracionMin &lt;= 0) return emptyList()</span>
+<span class="fc" id="L29">        val calendario = calendario(inicioDia(dia))</span>
+<span class="fc bfc" id="L30" title="All 2 branches covered.">        if (calendario.get(Calendar.DAY_OF_WEEK) in listOf(Calendar.SATURDAY, Calendar.SUNDAY)) return emptyList()</span>
+<span class="fc" id="L31">        return (9 until 18).mapNotNull { hora -&gt;</span>
+<span class="fc" id="L32">            val inicioMin = hora * 60</span>
+<span class="fc" id="L33">            val finMin = inicioMin + duracionMin</span>
+<span class="fc bfc" id="L34" title="All 6 branches covered.">            if (finMin &gt; 18 * 60 || (inicioMin &lt; 14 * 60 &amp;&amp; finMin &gt; 13 * 60)) null</span>
+<span class="fc" id="L35">            else (calendario.clone() as Calendar).apply { set(Calendar.HOUR_OF_DAY, hora) }.timeInMillis</span>
+        }
+    }
+
+    fun esBloqueValido(inicio: Long, duracionMin: Int): Boolean =
+<span class="fc" id="L40">        inicio in bloquesDelDia(inicio, duracionMin)</span>
+
+    /** Días de una semana que aún pueden ofrecer bloques con la anticipación requerida. */
+    fun diasParaElegir(inicioSemana: Long, duracionMin: Int, ahora: Long): List&lt;Long&gt; =
+<span class="fc" id="L44">        (0..6).map { desplazamiento -&gt;</span>
+<span class="fc" id="L45">            calendario(inicioDia(inicioSemana)).apply { add(Calendar.DAY_OF_YEAR, desplazamiento) }.timeInMillis</span>
+<span class="fc bfc" id="L46" title="All 2 branches covered.">        }.filter { dia -&gt; bloquesDelDia(dia, duracionMin).any { it - ahora &gt;= ANTICIPACION_MS } }</span>
+
+    fun formatear(instante: Long, patron: String): String =
+<span class="fc" id="L49">        SimpleDateFormat(patron, Locale.forLanguageTag(&quot;es-CL&quot;)).apply { timeZone = zona }.format(instante)</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

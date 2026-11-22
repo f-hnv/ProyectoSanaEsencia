@@ -1,7 +1,21 @@
+import org.gradle.testing.jacoco.plugins.JacocoTaskExtension
+import org.gradle.testing.jacoco.tasks.JacocoReport
+import org.gradle.testing.jacoco.tasks.JacocoCoverageVerification
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
+    jacoco
+}
+
+jacoco { toolVersion = "0.8.16" }
+
+tasks.withType<Test>().configureEach {
+    extensions.configure<JacocoTaskExtension> {
+        isIncludeNoLocationClasses = true
+        excludes = listOf("jdk.internal.*")
+    }
 }
 
 fun literalJava(valor: String) = "\"" + valor.replace("\\", "\\\\")
@@ -63,6 +77,38 @@ android {
     }
 }
 
+val jacocoLogicaReport = tasks.register<JacocoReport>("jacocoLogicaReport") {
+    dependsOn("testDebugUnitTest")
+    executionData.setFrom(layout.buildDirectory.file("jacoco/testDebugUnitTest.exec"))
+    sourceDirectories.setFrom(files("src/main/java"))
+    classDirectories.setFrom(fileTree(layout.buildDirectory.dir("intermediates/built_in_kotlinc/debug/compileDebugKotlin/classes")) {
+        include("com/example/sanaesencia/viewmodel/**", "com/example/sanaesencia/data/repository/**",
+            "com/example/sanaesencia/domain/**", "com/example/sanaesencia/utils/**")
+    })
+    reports {
+        html.required.set(true)
+        html.outputLocation.set(layout.buildDirectory.dir("reports/jacoco/logica"))
+        xml.required.set(true)
+        xml.outputLocation.set(layout.buildDirectory.file("reports/jacoco/logica.xml"))
+    }
+}
+
+tasks.register("createDebugUnitTestCoverageReport") {
+    dependsOn(jacocoLogicaReport)
+}
+
+tasks.register<JacocoCoverageVerification>("verificarCoberturaLogica") {
+    dependsOn(jacocoLogicaReport)
+    executionData.setFrom(jacocoLogicaReport.map { it.executionData })
+    classDirectories.setFrom(jacocoLogicaReport.map { it.classDirectories })
+    violationRules {
+        rule {
+            limit { counter = "LINE"; minimum = "0.80".toBigDecimal() }
+            limit { counter = "INSTRUCTION"; minimum = "0.80".toBigDecimal() }
+        }
+    }
+}
+
 dependencies {
     implementation("com.squareup.retrofit2:retrofit:3.0.0")
     implementation("com.squareup.retrofit2:converter-gson:3.0.0")
@@ -78,6 +124,9 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     testImplementation(libs.junit)
+    testImplementation("io.mockk:mockk:1.14.11")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
+    testImplementation("org.robolectric:robolectric:4.18.1")
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)

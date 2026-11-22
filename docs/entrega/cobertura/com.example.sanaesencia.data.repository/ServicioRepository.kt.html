@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ServicioRepository.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.example.sanaesencia.data.repository</a> &gt; <span class="el_source">ServicioRepository.kt</span></div><h1>ServicioRepository.kt</h1><pre class="source lang-java linenums">package com.example.sanaesencia.data.repository
+
+import com.example.sanaesencia.data.local.dao.ServicioDao
+import com.example.sanaesencia.data.local.entity.ServicioEntity
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
+
+<span class="fc" id="L9">class ServicioRepository(private val dao: ServicioDao, private val catalogo:(()-&gt;CatalogoRepository)?=null) {</span>
+
+<span class="fc bfc" id="L11" title="All 6 branches covered.">    fun observarServicios(): Flow&lt;List&lt;ServicioEntity&gt;&gt; = catalogo?.invoke()?.let { remoto -&gt;</span>
+<span class="fc" id="L12">        remoto.estado.map { it.servicios }.onStart { remoto.actualizar() }</span>
+<span class="fc" id="L13">    } ?: dao.observarActivos()</span>
+
+    fun observarPorCategoria(categoria: String): Flow&lt;List&lt;ServicioEntity&gt;&gt; =
+<span class="fc" id="L16">        observarServicios().map { lista -&gt; lista.filter { it.categoria==categoria } }</span>
+
+<span class="fc" id="L18">    fun observarCategorias(): Flow&lt;List&lt;String&gt;&gt; = observarServicios().map { lista -&gt; lista.map { it.categoria }.distinct() }</span>
+
+    suspend fun obtenerPorId(id: Long): ServicioEntity? {
+<span class="fc bfc" id="L21" title="All 4 branches covered.">        val remoto=catalogo?.invoke() ?: return dao.obtenerPorId(id)</span>
+<span class="fc" id="L22">        remoto.exigirVigente()</span>
+<span class="pc bpc" id="L23" title="3 of 6 branches missed.">        return remoto.estado.value.servicios.find { it.id==id }</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

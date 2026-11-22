@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CatalogoRepository.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.example.sanaesencia.data.repository</a> &gt; <span class="el_source">CatalogoRepository.kt</span></div><h1>CatalogoRepository.kt</h1><pre class="source lang-java linenums">package com.example.sanaesencia.data.repository
+
+import androidx.room.withTransaction
+import com.example.sanaesencia.BuildConfig
+import com.example.sanaesencia.data.local.AppDatabase
+import com.example.sanaesencia.data.local.entity.*
+import com.example.sanaesencia.data.remote.*
+import com.example.sanaesencia.domain.model.Modalidad
+import com.example.sanaesencia.utils.precioExacto
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import java.math.BigDecimal
+import java.math.RoundingMode
+
+<span class="fc" id="L18">data class CatalogoEstado(</span>
+<span class="fc" id="L19">    val servicios:List&lt;ServicioEntity&gt; = emptyList(), val especialistas:List&lt;EspecialistaEntity&gt; = emptyList(),</span>
+<span class="fc" id="L20">    val serviciosPorEspecialista:Map&lt;Long,List&lt;Long&gt;&gt; = emptyMap(), val cargando:Boolean=true,</span>
+<span class="fc" id="L21">    val vigente:Boolean=false, val actualizadoEn:Long?=null, val error:String?=null</span>
+<span class="fc" id="L22">)</span>
+
+/** Obtiene una instantánea completa antes de actualizar la copia local, sin borrar citas ni sus referencias. */
+<span class="fc" id="L25">class CatalogoRepository(private val db:AppDatabase, private val api:CatalogoApi,</span>
+<span class="pc" id="L26">    private val origen:String=BuildConfig.CATALOGO_API_URL,</span>
+<span class="fc" id="L27">    private val reloj:()-&gt;Long={System.currentTimeMillis()}) {</span>
+<span class="fc" id="L28">    private val mutex=Mutex()</span>
+<span class="fc" id="L29">    private val _estado=MutableStateFlow(CatalogoEstado())</span>
+<span class="fc" id="L30">    val estado=_estado.asStateFlow()</span>
+<span class="fc" id="L31">    private val dao=db.catalogoRemotoDao()</span>
+
+<span class="fc" id="L33">    suspend fun actualizar(forzar:Boolean=false) = mutex.withLock {</span>
+<span class="fc" id="L34">        val anterior=_estado.value</span>
+<span class="pc bpc" id="L35" title="2 of 8 branches missed.">        if(!forzar &amp;&amp; anterior.vigente &amp;&amp; reloj()-(anterior.actualizadoEn ?: 0)&lt;30_000) return@withLock</span>
+<span class="fc" id="L36">        val cache=try { leerCache() }</span>
+<span class="fc" id="L37">        catch(e:CancellationException) { throw e }</span>
+<span class="nc" id="L38">        catch(e:Exception) {</span>
+<span class="nc" id="L39">            _estado.value=anterior.copy(cargando=false,vigente=false,error=&quot;No se pudo leer la copia del catálogo. Inténtalo nuevamente&quot;)</span>
+<span class="nc" id="L40">            return@withLock</span>
+        }
+<span class="fc" id="L42">        _estado.value=cache.copy(cargando=true)</span>
+<span class="fc" id="L43">        try {</span>
+<span class="fc" id="L44">            val datos=llamadaBackend { coroutineScope {</span>
+<span class="fc" id="L45">                val servicios=async { api.servicios() }</span>
+<span class="fc" id="L46">                val especialistas=async { api.especialistas() }</span>
+<span class="fc" id="L47">                servicios.await() to especialistas.await()</span>
+<span class="fc" id="L48">            } }</span>
+<span class="fc" id="L49">            validar(datos.first,datos.second)</span>
+<span class="fc" id="L50">            guardar(datos.first.filter { it.activo },datos.second.filter { it.activo })</span>
+<span class="fc" id="L51">            _estado.value=leerCache().copy(cargando=false,vigente=true)</span>
+<span class="nc" id="L52">        } catch(e:CancellationException) {</span>
+<span class="nc" id="L53">            _estado.value=cache.copy(cargando=false)</span>
+<span class="nc" id="L54">            throw e</span>
+<span class="fc" id="L55">        } catch(e:Exception) {</span>
+<span class="fc bfc" id="L56" title="All 6 branches covered.">            _estado.value=cache.copy(cargando=false,error=(e as? ErrorBackend)?.message</span>
+<span class="fc" id="L57">                ?: &quot;No se pudo actualizar el catálogo. Inténtalo nuevamente&quot;)</span>
+        }
+<span class="fc" id="L59">    }</span>
+    private fun validar(servicios:List&lt;ServicioRemoto&gt;, perfiles:List&lt;EspecialistaRemoto&gt;) {
+<span class="pc bpc" id="L61" title="5 of 10 branches missed.">        fun servicioValido(s:ServicioRemoto)=s.id&gt;0 &amp;&amp; !s.nombre.isNullOrBlank() &amp;&amp; s.descripcion!=null &amp;&amp;</span>
+<span class="pc bpc" id="L62" title="2 of 6 branches missed.">            s.precio!=null &amp;&amp; s.precio&gt;BigDecimal.ZERO &amp;&amp; s.precio&lt;=BigDecimal(&quot;99999999.99&quot;) &amp;&amp;</span>
+<span class="pc bpc" id="L63" title="2 of 4 branches missed.">            s.precio.stripTrailingZeros().scale()&lt;=2 &amp;&amp; s.duracionMinutos&gt;0</span>
+<span class="pc bpc" id="L64" title="1 of 6 branches missed.">        require(servicios.all(::servicioValido) &amp;&amp; servicios.distinctBy { it.id }.size==servicios.size)</span>
+<span class="pc bpc" id="L65" title="3 of 6 branches missed.">        require(perfiles.distinctBy { it.id }.size==perfiles.size &amp;&amp; perfiles.all {</span>
+<span class="pc bpc" id="L66" title="8 of 16 branches missed.">            it.id&gt;0 &amp;&amp; !it.nombre.isNullOrBlank() &amp;&amp; !it.especialidad.isNullOrBlank() &amp;&amp; it.descripcion!=null &amp;&amp;</span>
+<span class="pc bpc" id="L67" title="2 of 4 branches missed.">                it.servicios!=null &amp;&amp; it.servicios.all(::servicioValido) &amp;&amp;</span>
+<span class="pc bpc" id="L68" title="1 of 2 branches missed.">                it.servicios.distinctBy { s -&gt; s.id }.size==it.servicios.size &amp;&amp;</span>
+<span class="pc bpc" id="L69" title="4 of 6 branches missed.">                (!it.activo || it.permiteOnline || it.permitePresencial)</span>
+        })
+<span class="fc" id="L71">    }</span>
+<span class="pc" id="L72">    private suspend fun guardar(servicios:List&lt;ServicioRemoto&gt;, perfiles:List&lt;EspecialistaRemoto&gt;) = db.withTransaction {</span>
+<span class="fc" id="L73">        val vinculos=dao.vinculos(origen)</span>
+<span class="fc" id="L74">        val serviciosPrevios=vinculos.filter { it.tipo==&quot;SERVICIO&quot; }.associate { it.servidorId to it.localId }</span>
+<span class="fc" id="L75">        val perfilesPrevios=vinculos.filter { it.tipo==&quot;ESPECIALISTA&quot; }.associate { it.servidorId to it.localId }</span>
+<span class="pc bpc" id="L76" title="1 of 4 branches missed.">        for(id in serviciosPrevios.values) db.servicioDao().obtenerPorId(id)?.let { db.servicioDao().actualizar(it.copy(activo=false)) }</span>
+<span class="pc bpc" id="L77" title="1 of 4 branches missed.">        for(id in perfilesPrevios.values) db.especialistaDao().obtenerPorId(id)?.let { db.especialistaDao().actualizar(it.copy(activo=false)) }</span>
+<span class="fc" id="L78">        val serviciosLocales=mutableMapOf&lt;Long,Long&gt;()</span>
+<span class="fc bfc" id="L79" title="All 2 branches covered.">        for(s in servicios) {</span>
+<span class="fc" id="L80">            val id=serviciosPrevios[s.id]</span>
+<span class="fc bfc" id="L81" title="All 2 branches covered.">            val fila=ServicioEntity(id=id ?: 0,nombre=s.nombre,descripcion=s.descripcion,categoria=&quot;Servicios del centro&quot;,</span>
+<span class="fc" id="L82">                duracionMin=s.duracionMinutos,precioClp=s.precio.setScale(0,RoundingMode.HALF_UP).intValueExact(),</span>
+<span class="fc" id="L83">                permiteOnline=s.permiteOnline,activo=true,precioServidor=s.precio.toPlainString())</span>
+<span class="fc bfc" id="L84" title="All 2 branches covered.">            val local=if(id==null) db.servicioDao().insertar(fila) else { db.servicioDao().actualizar(fila); id }</span>
+<span class="fc bfc" id="L85" title="All 2 branches covered.">            if(id==null) dao.vincular(CatalogoVinculoEntity(origen,&quot;SERVICIO&quot;,s.id,local))</span>
+<span class="fc" id="L86">            serviciosLocales[s.id]=local</span>
+        }
+<span class="fc" id="L88">        dao.limpiarServiciosDeEspecialistas(perfilesPrevios.values.toList())</span>
+<span class="fc bfc" id="L89" title="All 2 branches covered.">        for(p in perfiles) {</span>
+<span class="fc" id="L90">            val id=perfilesPrevios[p.id]</span>
+<span class="fc bfc" id="L91" title="All 2 branches covered.">            val fila=EspecialistaEntity(id=id ?: 0,nombre=p.nombre,especialidad=p.especialidad,descripcion=p.descripcion,</span>
+<span class="pc bpc" id="L92" title="2 of 4 branches missed.">                permiteOnline=p.permiteOnline,permitePresencial=p.permitePresencial,activo=true)</span>
+<span class="fc bfc" id="L93" title="All 2 branches covered.">            val local=if(id==null) db.especialistaDao().insertar(fila) else { db.especialistaDao().actualizar(fila); id }</span>
+<span class="fc bfc" id="L94" title="All 2 branches covered.">            if(id==null) dao.vincular(CatalogoVinculoEntity(origen,&quot;ESPECIALISTA&quot;,p.id,local))</span>
+<span class="fc" id="L95">            val asignados=p.servicios.filter { it.activo }.mapNotNull { serviciosLocales[it.id] }</span>
+<span class="fc" id="L96">            db.centroDao().vincularServicios(asignados.map { EspecialistaServicioEntity(local,it) })</span>
+        }
+<span class="fc" id="L98">        dao.sincronizar(CatalogoSincronizacionEntity(origen,reloj()))</span>
+<span class="pc" id="L99">    }</span>
+<span class="fc" id="L100">    private suspend fun leerCache():CatalogoEstado = db.withTransaction {</span>
+<span class="fc" id="L101">        val vinculos=dao.vinculos(origen)</span>
+<span class="fc" id="L102">        val servicios=vinculos.filter { it.tipo==&quot;SERVICIO&quot; }.mapNotNull { db.servicioDao().obtenerPorId(it.localId) }.filter { it.activo }</span>
+<span class="fc" id="L103">        val perfiles=vinculos.filter { it.tipo==&quot;ESPECIALISTA&quot; }.mapNotNull { db.especialistaDao().obtenerPorId(it.localId) }.filter { it.activo }</span>
+<span class="fc" id="L104">        CatalogoEstado(servicios.sortedBy { it.nombre },perfiles.sortedBy { it.nombre },</span>
+<span class="fc" id="L105">            perfiles.associate { it.id to db.centroDao().serviciosDeEspecialista(it.id) },</span>
+<span class="fc bfc" id="L106" title="All 2 branches covered.">            cargando=false,actualizadoEn=dao.sincronizacion(origen)?.actualizadoEn)</span>
+<span class="fc" id="L107">    }</span>
+    suspend fun exigirVigente() {
+<span class="fc" id="L109">        actualizar()</span>
+<span class="pc bpc" id="L110" title="1 of 4 branches missed.">        if(!_estado.value.vigente) throw ErrorBackend(null,_estado.value.error ?: &quot;Actualiza el catálogo para continuar&quot;)</span>
+<span class="fc" id="L111">    }</span>
+<span class="pc bpc" id="L112" title="3 of 10 branches missed.">    suspend fun idServicioServidor(local:Long):Long?=dao.vinculos(origen).find { it.tipo==&quot;SERVICIO&quot; &amp;&amp; it.localId==local }?.servidorId</span>
+<span class="pc bpc" id="L113" title="5 of 10 branches missed.">    suspend fun idEspecialistaServidor(local:Long):Long?=dao.vinculos(origen).find { it.tipo==&quot;ESPECIALISTA&quot; &amp;&amp; it.localId==local }?.servidorId</span>
+    suspend fun idEspecialistaLocal(servidor:Long):Long? {
+<span class="fc" id="L115">        exigirVigente()</span>
+<span class="pc bpc" id="L116" title="5 of 10 branches missed.">        return dao.vinculos(origen).find { it.tipo==&quot;ESPECIALISTA&quot; &amp;&amp; it.servidorId==servidor }?.localId</span>
+    }
+<span class="fc" id="L118">    suspend fun validarSeleccion(servicioLocal:Long, perfilLocal:Long, modalidad:Modalidad) {</span>
+<span class="pc bpc" id="L119" title="1 of 2 branches missed.">        val sId=idServicioServidor(servicioLocal) ?: throw ErrorBackend(409,&quot;Vuelve a elegir el servicio desde el catálogo actualizado&quot;)</span>
+<span class="pc bpc" id="L120" title="1 of 2 branches missed.">        val pId=idEspecialistaServidor(perfilLocal) ?: throw ErrorBackend(409,&quot;Vuelve a elegir el especialista desde el catálogo actualizado&quot;)</span>
+<span class="fc" id="L121">        val (s,p)=llamadaBackend { coroutineScope {</span>
+<span class="fc" id="L122">            val servicio=async { api.servicio(sId) }; val perfil=async { api.especialista(pId) }</span>
+<span class="fc" id="L123">            servicio.await() to perfil.await()</span>
+<span class="fc" id="L124">        } }</span>
+<span class="fc" id="L125">        validar(listOf(s),listOf(p))</span>
+<span class="fc" id="L126">        val anterior=db.servicioDao().obtenerPorId(servicioLocal)</span>
+<span class="fc" id="L127">        val profesional=db.especialistaDao().obtenerPorId(perfilLocal)</span>
+<span class="pc bpc" id="L128" title="9 of 18 branches missed.">        val valido=anterior!=null &amp;&amp; profesional!=null &amp;&amp; s.id==sId &amp;&amp; p.id==pId &amp;&amp; s.activo &amp;&amp; p.activo &amp;&amp; p.servicios.any { it.id==sId &amp;&amp; it.activo } &amp;&amp;</span>
+<span class="pc bpc" id="L129" title="2 of 6 branches missed.">            s.duracionMinutos==anterior?.duracionMin &amp;&amp; s.precio.compareTo(anterior.precioExacto())==0 &amp;&amp;</span>
+<span class="pc bpc" id="L130" title="2 of 4 branches missed.">            s.nombre==anterior.nombre &amp;&amp; s.permiteOnline==anterior.permiteOnline &amp;&amp;</span>
+<span class="pc bpc" id="L131" title="3 of 6 branches missed.">            p.permiteOnline==profesional?.permiteOnline &amp;&amp; p.permitePresencial==profesional.permitePresencial &amp;&amp;</span>
+<span class="pc bpc" id="L132" title="6 of 8 branches missed.">            (if(modalidad==Modalidad.ONLINE) s.permiteOnline &amp;&amp; p.permiteOnline else p.permitePresencial)</span>
+<span class="fc bfc" id="L133" title="All 2 branches covered.">        if(!valido) {</span>
+<span class="fc" id="L134">            actualizar(forzar=true)</span>
+<span class="fc" id="L135">            throw ErrorBackend(409,&quot;El servicio o especialista cambió. Vuelve a elegir desde el catálogo actualizado&quot;)</span>
+        }
+<span class="fc" id="L137">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

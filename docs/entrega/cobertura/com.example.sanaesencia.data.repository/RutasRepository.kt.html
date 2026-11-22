@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RutasRepository.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.example.sanaesencia.data.repository</a> &gt; <span class="el_source">RutasRepository.kt</span></div><h1>RutasRepository.kt</h1><pre class="source lang-java linenums">package com.example.sanaesencia.data.repository
+
+import com.example.sanaesencia.data.remote.RutasApi
+import com.example.sanaesencia.data.remote.OrigenRuta
+import com.example.sanaesencia.data.remote.SesionBackend
+import kotlinx.coroutines.CancellationException
+import retrofit2.HttpException
+import java.io.IOException
+import java.util.Locale
+import kotlin.math.ceil
+
+<span class="pc" id="L12">data class RecorridoSede(val metros: Double, val segundos: Double) {</span>
+<span class="fc bfc" id="L13" title="All 2 branches covered.">    val distanciaTexto: String get() = if (metros &lt; 1000) &quot;${ceil(metros).toInt()} m&quot;</span>
+<span class="fc" id="L14">        else String.format(Locale.forLanguageTag(&quot;es-CL&quot;), &quot;%.1f km&quot;, metros / 1000)</span>
+    val duracionTexto: String get() {
+<span class="fc" id="L16">        val minutos = ceil(segundos / 60).toInt().coerceAtLeast(1)</span>
+<span class="fc bfc" id="L17" title="All 2 branches covered.">        return if (minutos &lt; 60) &quot;$minutos min&quot; else &quot;${minutos / 60} h ${minutos % 60} min&quot;</span>
+    }
+}
+
+<span class="fc" id="L21">class ErrorRuta(override val message: String): Exception(message)</span>
+
+<span class="pc" id="L23">class RutasRepository(private val api:RutasApi,</span>
+<span class="pc bnc" id="L24" title="All 2 branches missed.">    private val autorizacion:()-&gt;String?={SesionBackend.actual()?.autorizacion}) {</span>
+<span class="fc" id="L25">    suspend fun consultar(latitud: Double, longitud: Double): RecorridoSede {</span>
+<span class="pc bpc" id="L26" title="4 of 20 branches missed.">        if (!latitud.isFinite() || !longitud.isFinite() || latitud !in -90.0..90.0 || longitud !in -180.0..180.0)</span>
+<span class="fc" id="L27">            throw ErrorRuta(&quot;La ubicación no es válida. Vuelve a consultar tu ubicación.&quot;)</span>
+<span class="fc bfc" id="L28" title="All 4 branches covered.">        val credencial = autorizacion()?.trim().orEmpty()</span>
+<span class="fc bfc" id="L29" title="All 2 branches covered.">        if (credencial.isBlank()) throw ErrorRuta(&quot;Inicia sesión para consultar el recorrido. También puedes abrir la sede en mapas.&quot;)</span>
+<span class="fc" id="L30">        try {</span>
+<span class="fc" id="L31">            val respuesta = api.ruta(OrigenRuta(latitud,longitud), credencial)</span>
+<span class="fc bfc" id="L32" title="All 4 branches covered.">            if(autorizacion()?.trim()!=credencial)throw CancellationException(&quot;La sesión cambió durante la consulta&quot;)</span>
+<span class="fc bfc" id="L33" title="All 2 branches covered.">            if (!respuesta.isSuccessful) throw HttpException(respuesta)</span>
+<span class="fc bfc" id="L34" title="All 2 branches covered.">            val ruta = respuesta.body()?.route</span>
+<span class="fc bfc" id="L35" title="All 2 branches covered.">            val metros = ruta?.distance</span>
+<span class="fc bfc" id="L36" title="All 2 branches covered.">            val segundos = ruta?.duration</span>
+<span class="pc bpc" id="L37" title="5 of 16 branches missed.">            if (metros == null || segundos == null || !metros.isFinite() || !segundos.isFinite() || metros &lt; 0 || segundos &lt; 0)</span>
+<span class="fc" id="L38">                throw ErrorRuta(&quot;No se encontró un recorrido en auto para esta ubicación. Puedes abrir la sede en mapas.&quot;)</span>
+<span class="fc" id="L39">            return RecorridoSede(metros, segundos)</span>
+<span class="fc" id="L40">        } catch (e: CancellationException) { throw e }</span>
+<span class="fc" id="L41">        catch (e: ErrorRuta) { throw e }</span>
+<span class="fc" id="L42">        catch (e: HttpException) {</span>
+<span class="fc bfc" id="L43" title="All 3 branches covered.">            throw ErrorRuta(when(e.code()) {</span>
+<span class="fc" id="L44">                401, 403 -&gt; &quot;Inicia sesión nuevamente para consultar el recorrido. Puedes abrir la sede en mapas.&quot;</span>
+<span class="fc" id="L45">                429 -&gt; &quot;Se alcanzó el límite de consultas de recorridos. Inténtalo más tarde.&quot;</span>
+<span class="fc" id="L46">                else -&gt; &quot;No se pudo consultar el recorrido. Inténtalo nuevamente.&quot;</span>
+            })
+<span class="fc" id="L48">        } catch (e: IOException) {</span>
+<span class="fc" id="L49">            throw ErrorRuta(&quot;No se pudo conectar con el servicio de recorridos. Revisa tu conexión.&quot;)</span>
+<span class="nc" id="L50">        } catch (e: com.google.gson.JsonParseException) {</span>
+<span class="nc" id="L51">            throw ErrorRuta(&quot;El servicio de recorridos devolvió una respuesta no válida.&quot;)</span>
+<span class="nc" id="L52">        } catch (e: IllegalStateException) {</span>
+<span class="nc" id="L53">            throw ErrorRuta(&quot;No se pudo interpretar el recorrido. Inténtalo nuevamente.&quot;)</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>
