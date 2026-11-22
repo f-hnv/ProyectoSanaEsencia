@@ -13,7 +13,7 @@ Grupo 4: **Felipe Andres Araya Henriquez** y **Antonia Sofia Munoz Pizarro**.
 - Descarga: https://54.204.182.160/descargas/SanaEsencia-1.3.apk
 - SHA-256: `2f5094b11e9bad836021d4f4ce540a6273e9ca1b15bfd7c501c18c8b3e6759e5`.
 
-Descargar y abrir el APK. Sobre la 1.2, aceptar Actualizar sin desinstalar. Se requiere internet y AWS activo; la PC de desarrollo no necesita estar encendida. Hacer commit no actualiza una APK instalada.
+Descargar y abrir el APK. Sobre la 1.2, aceptar Actualizar sin desinstalar. Se requiere internet y AWS activo.
 
 Para ejecutar el código: abrir la carpeta raíz en Android Studio, instalar SDK API 37 y sincronizar. El wrapper usa Gradle 9.6.0 y el daemon JDK 25 configurado en el proyecto. Ejecutar `app` en un dispositivo API 24+. Registrar una cuenta propia; no se publica una contraseña administradora.
 
@@ -90,14 +90,9 @@ La verificación falla si las líneas o instrucciones de esos paquetes bajan del
 
 Evidencias para revisar sin ejecutar Gradle: [reporte HTML de cobertura](docs/entrega/cobertura/index.html), [XML de cobertura](docs/entrega/cobertura-logica.xml), [cifras resumidas](docs/entrega/resultado-cobertura.json) y [certificado de firma verificado](docs/entrega/FIRMA_VERIFICADA.txt).
 
-![Evidencia técnica del APK firmado y del almacén JKS](docs/entrega/evidencia-apk-firma.png)
-
-El equipo informa avances compartidos en **Microsoft Teams**, sin tablero Trello previo. Debe conservar esa evidencia real y completar o aclarar con la docente el requisito explícito de Trello, sin atribuir fechas inexistentes.
-
-Documentación actual: [guía PDF de estudio y defensa](docs/entrega/Guia_SanaEsencia.pdf), [conexión Android/backend](CONEXION_BACKEND.md), [AWS](CONEXION_AWS.md) y [APK/firma](APK_FIRMADO.md). Antes de defender: activar Learner Lab y EC2, comprobar HTTPS/servicios, mantener cupos vigentes y probar el APK entregado. La IP elástica no enciende el servidor.
 
 <details>
-<summary>Documentación histórica de la Evaluación Parcial 2 — no describe la versión actual</summary>
+<summary>Documentación Evaluación Parcial 2 — no describe la versión actual</summary>
 
 # Sanaesencia (prototipo anterior)
 
@@ -243,15 +238,6 @@ Esta ejecución excluye las capturas opcionales. `GpsLecturaTest` necesita una l
 - Análisis estático: **0 errores y 31 advertencias** de mantenimiento, recursos y dependencias.
 - La captura con cámara y el GPS en un teléfono físico **siguen pendientes de comprobación**. Las pruebas de emulador no sustituyen esa revisión.
 
-### Capturas opcionales
-
-Para generar evidencia visual con datos ficticios:
-
-```powershell
-.\gradlew.bat :app:connectedDebugAndroidTest '-Pandroid.testInstrumentationRunnerArguments.class=com.example.sanaesencia.CapturasDisenoTest' '-Pandroid.testInstrumentationRunnerArguments.capturas=true'
-```
-
-Las imágenes se guardan en el emulador, en `Download/sanaesencia-*.png`. Estas pruebas no confirman reservas ni envían mensajes. Deben ejecutarse por separado con el argumento `capturas=true`; sin él, el generador se omite por una condición de JUnit que el reporte utilizado puede mostrar como fallo.
 
 ## Evidencia visual
 
