@@ -14,18 +14,16 @@ Se configuran en `app/build.gradle.kts` y se incorporan a BuildConfig. `Conexion
 
 - EC2 Ubuntu 24.04 en us-east-1, con IP elástica 54.204.182.160.
 - MySQL local al servidor, con tres bases y tres usuarios técnicos independientes.
-- Contraseñas generadas en el servidor y guardadas en `/etc/sanaesencia/*.env`, con permisos restringidos; no están en Android ni en Git.
+- Contraseñas generadas en el servidor y guardadas en `/etc/sanaesencia/*.env`, con permisos restringidos.
 - Servicios systemd `sana-usuarios`, `sana-catalogo` y `sana-reservas`.
 - Los JAR escuchan en 127.0.0.1:8080/8081/8082. Nginx publica solo HTTP/HTTPS; HTTP redirige a HTTPS salvo la validación del certificado.
-- Certificado público de Let's Encrypt para la IP, obtenido con Certbot, perfil shortlived. Se agregó un deploy hook para recargar Nginx después de renovar.
+
 
 ## Datos y cuentas
 
-Las cuentas de MySQL de la PC no son las cuentas de la app y no se trasladan a Android. La nueva base de usuarios en AWS tiene sus propias cuentas. Para iniciar sesión hay que registrarse en AWS o usar una cuenta que ya exista allí. Las credenciales anteriores del backend local no autentican automáticamente en AWS.
+Se creó una cuenta administradora y cargó el catálogo real con `/api/admin/catalogo/importar-centro`. Se adaptaron los IDs de la nube antes de cargar 120 cupos con fecha para 15 profesionales reales. No se inventaron horarios para los ocho perfiles sin disponibilidad pública consultable.
 
-La estudiante creó una cuenta administradora y cargó el catálogo real con `/api/admin/catalogo/importar-centro`. Se adaptaron los IDs de la nube antes de cargar 120 cupos con fecha para 15 profesionales reales. No se inventaron horarios para los ocho perfiles sin disponibilidad pública consultable.
-
-Los cupos proceden de una copia de la agenda pública consultada el 22/11/2026; no se repiten automáticamente cada semana y deben actualizarse cuando venzan o cambien. Crear una cita en este backend no crea una reserva en Medilink ni contacta al centro real.
+Los cupos proceden de una copia de la agenda pública el 22/11/2026; no se repiten automáticamente cada semana y deben actualizarse cuando venzan o cambien.
 
 ## Ejecutar Android
 
@@ -33,16 +31,6 @@ Con AWS activo y acceso a internet, se puede ejecutar Run desde Android Studio o
 
 El laboratorio y la instancia deben estar activos para atender peticiones. La IP elástica mantiene la dirección, pero no enciende el servidor ni evita las restricciones del laboratorio. Si la instancia está apagada no puede atender peticiones ni renovar certificados. Antes de la defensa, comprobar el laboratorio, los servicios, el certificado y el flujo de reserva desde un celular.
 
-## Volver a probar contra la PC
-
-Las URL se pueden sobrescribir con propiedades Gradle. Para una compilación local debug:
-
-```powershell
-.\preparar-conexion-local.ps1
-.\gradlew.bat :app:installDebug -PUSUARIOS_API_URL=http://127.0.0.1:8080/ -PCATALOGO_API_URL=http://127.0.0.1:8081/ -PRESERVAS_API_URL=http://127.0.0.1:8082/
-```
-
-Para volver a AWS, recompilar sin esas propiedades. No modificar local.properties con contraseñas de MySQL.
 
 ## Comprobaciones
 
