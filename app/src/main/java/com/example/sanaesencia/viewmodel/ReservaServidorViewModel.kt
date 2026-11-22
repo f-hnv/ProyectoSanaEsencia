@@ -16,6 +16,7 @@ data class ReservaServidorState(
     val especialistaId:Long?=null, val modalidad:Modalidad=Modalidad.PRESENCIAL,
     val dia:String?=null, val inicio:String?=null, val turnos:List<TurnoRemoto> = emptyList(),
     val cargandoTurnos:Boolean=false, val errorTurnos:String?=null,
+    val diasDisponibles:List<String> = emptyList(), val cargandoDias:Boolean=false, val errorDias:String?=null,
     val recibo:ReservaRemota?=null, val ambigua:Boolean=false, val sugerencia:SugerenciaRemota?=null,
     val errorUbicacion:String?=null, val errorCarga:Boolean=false
 )
@@ -27,6 +28,7 @@ class ReservaServidorViewModel(private val container:AppContainer):ViewModel() {
     private var edicion:Long?=null
     private var carga:Job?=null
     private var consulta:Job?=null
+    private var calendario:Job?=null
     private var gps:Job?=null
     private var coordenadas:Pair<Double,Double>?=null
     private var entrada:Triple<Long?,Long?,Long?>?=null
@@ -34,7 +36,7 @@ class ReservaServidorViewModel(private val container:AppContainer):ViewModel() {
     fun preparar(servicioLocal:Long?,perfilLocal:Long?,reservaId:Long?) {
         val clave=Triple(servicioLocal,perfilLocal,reservaId)
         if(entrada==clave && !_estado.value.errorCarga) return
-        entrada=clave; edicion=reservaId; carga?.cancel(); consulta?.cancel();gps?.cancel()
+        entrada=clave; edicion=reservaId; carga?.cancel(); consulta?.cancel();calendario?.cancel();gps?.cancel()
         _estado.value=ReservaServidorState()
         carga=viewModelScope.launch {
             try {
@@ -55,7 +57,7 @@ class ReservaServidorViewModel(private val container:AppContainer):ViewModel() {
                 val modalidad=previa?.modalidad ?: if(profesional?.permitePresencial==false) Modalidad.ONLINE else Modalidad.PRESENCIAL
                 _estado.value=ReservaServidorState(cargando=false,servicio=servicio,profesionales=perfiles,
                     especialistaId=profesional?.id,modalidad=modalidad,dia=previa?.inicio?.take(10))
-                cargarTurnos()
+                cargarDias()
             } catch(e:CancellationException) { throw e }
             catch(e:Exception) { _estado.value=ReservaServidorState(cargando=false,error=e.message ?: "No se pudo preparar la reserva",errorCarga=true) }
         }
@@ -65,13 +67,33 @@ class ReservaServidorViewModel(private val container:AppContainer):ViewModel() {
         if(edicion!=null || _estado.value.ocupada) return
         val p=_estado.value.profesionales.find { it.id==id } ?: return
         _estado.update { it.copy(especialistaId=id,modalidad=if(p.permitePresencial) Modalidad.PRESENCIAL else Modalidad.ONLINE,inicio=null,error=null) }
-        cargarTurnos(); ubicacion(coordenadas)
+        cargarDias(); ubicacion(coordenadas)
     }
     fun modalidad(m:Modalidad) {
         if(_estado.value.ocupada) return
-        _estado.update { it.copy(modalidad=m,inicio=null,error=null) }; cargarTurnos()
+        _estado.update { it.copy(modalidad=m,inicio=null,error=null) }; cargarDias()
     }
-    fun dia(d:String) { if(!_estado.value.ocupada) { _estado.update { it.copy(dia=d,inicio=null,error=null) }; cargarTurnos() } }
+    fun dia(d:String) { if(!_estado.value.ocupada && !_estado.value.cargandoDias && d in _estado.value.diasDisponibles) {
+        _estado.update { it.copy(dia=d,inicio=null,error=null) }; cargarTurnos()
+    } }
+    fun cargarDias() {
+        calendario?.cancel();consulta?.cancel()
+        val s=_estado.value
+        _estado.update { it.copy(diasDisponibles=emptyList(),turnos=emptyList(),inicio=null,
+            errorDias=null,errorTurnos=null,cargandoTurnos=false,cargandoDias=false) }
+        val p=s.especialistaId ?: return;val servicio=s.servicio ?: return
+        _estado.update { it.copy(cargandoDias=true) }
+        calendario=viewModelScope.launch {
+            try {
+                val dias=repo.diasDisponibles(p,servicio.id,s.modalidad,edicion)
+                ensureActive()
+                val elegido=s.dia?.takeIf { it in dias }
+                _estado.update { it.copy(diasDisponibles=dias.keys.toList(),dia=elegido,
+                    turnos=dias[elegido].orEmpty(),cargandoDias=false) }
+            } catch(e:CancellationException) { throw e }
+            catch(e:Exception) { _estado.update { it.copy(dia=null,cargandoDias=false,errorDias=e.message ?: "No se pudieron consultar los días disponibles") } }
+        }
+    }
     fun hora(inicio:String) { if(!_estado.value.ocupada && _estado.value.turnos.any { it.inicio==inicio }) _estado.update { it.copy(inicio=inicio,error=null) } }
     fun cargarTurnos() {
         consulta?.cancel()
@@ -81,7 +103,9 @@ class ReservaServidorViewModel(private val container:AppContainer):ViewModel() {
         _estado.update { it.copy(cargandoTurnos=true) }
         consulta=viewModelScope.launch {
             try { val turnos=repo.disponibilidad(p,servicio.id,dia,s.modalidad,edicion)
-                _estado.update { it.copy(turnos=turnos,cargandoTurnos=false) }
+                _estado.update { it.copy(turnos=turnos,cargandoTurnos=false,
+                    diasDisponibles=if(turnos.isEmpty()) it.diasDisponibles-dia else it.diasDisponibles,
+                    dia=dia.takeIf { turnos.isNotEmpty() }) }
             } catch(e:CancellationException) { throw e }
             catch(e:Exception) { _estado.update { it.copy(cargandoTurnos=false,errorTurnos=e.message ?: "No se pudo consultar disponibilidad") } }
         }

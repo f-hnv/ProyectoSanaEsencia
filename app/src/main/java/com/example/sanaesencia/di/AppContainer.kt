@@ -30,5 +30,5 @@ class AppContainer(context: Context) {
 
     val locationHelper = LocationHelper(context)
     val rutasRepository = com.example.sanaesencia.data.repository.RutasRepository(
-        com.example.sanaesencia.data.remote.ConexionTrueWay.api) { com.example.sanaesencia.BuildConfig.TRUEWAY_API_KEY }
+        com.example.sanaesencia.data.remote.ConexionRutas.api)
 }

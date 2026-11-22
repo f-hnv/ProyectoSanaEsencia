@@ -4,6 +4,11 @@ import com.example.sanaesencia.data.remote.*
 import com.example.sanaesencia.domain.model.Modalidad
 import com.example.sanaesencia.utils.FechasReservas
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 
@@ -73,6 +78,20 @@ class ReservasRepository(private val api:ReservasApi,
         }
     }
     suspend fun horarios(especialista:Long)=consultar { api.horarios(especialista,it.autorizacion) }
+    /** Primero busca fechas de la agenda publicada y luego comprueba cupos, paciente y boxes. */
+    suspend fun diasDisponibles(especialista:Long,servicio:Long,modalidad:Modalidad,reserva:Long?,
+        fechas:List<String> = FechasReservas.dias()):Map<String,List<TurnoRemoto>> = consultar { s ->
+        val agenda=api.horarios(especialista,s.autorizacion)
+        val candidatas=fechas.distinct().sorted().filter { fecha ->
+            agenda.any { h -> if(h.fecha!=null) h.fecha==fecha else h.dia==FechasReservas.diaSemana(fecha) }
+        }
+        val limite=Semaphore(4)
+        coroutineScope {
+            candidatas.map { fecha -> async {
+                limite.withPermit { fecha to disponibilidad(especialista,servicio,fecha,modalidad,reserva) }
+            } }.awaitAll().filter { it.second.isNotEmpty() }.toMap()
+        }
+    }
     suspend fun guardarHorarios(especialista:Long,horarios:List<HorarioRemoto>):List<HorarioRemoto> {
         require(horarios.isNotEmpty()) { "Agrega al menos un horario" }
         val resultado=consultar { s ->

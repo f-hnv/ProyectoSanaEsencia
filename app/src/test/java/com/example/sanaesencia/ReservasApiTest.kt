@@ -77,4 +77,31 @@ class ReservasApiTest {
         assertEquals("2027-01",FechasReservas.mes(com.example.sanaesencia.domain.model.PeriodoAgenda(2026,12).desplazar(1)))
         assertEquals(61,FechasReservas.dias().distinct().size)
     }
+    @Test fun calendarioExcluyeDiasSinAgendaYPublicadosPeroOcupados()=runBlocking {
+        server.dispatcher=object:Dispatcher(){override fun dispatch(r:RecordedRequest):MockResponse {
+            if(r.requestUrl!!.encodedPath=="/api/agenda/9") return MockResponse().setBody("""[
+                {"dia":"FRIDAY","desde":"09:00","hasta":"10:00","fecha":"2027-01-15","cupoPublicado":true},
+                {"dia":"SATURDAY","desde":"09:00","hasta":"10:00","fecha":"2027-01-16","cupoPublicado":true} ]""")
+            val fecha=r.requestUrl!!.queryParameter("fecha")
+            assertEquals("77",r.requestUrl!!.queryParameter("reservaId"))
+            assertEquals("ONLINE",r.requestUrl!!.queryParameter("modalidad"))
+            return MockResponse().setBody(if(fecha=="2027-01-16")
+                """[{"inicio":"2027-01-16T09:00:00","fin":"2027-01-16T10:00:00","boxesDisponibles":[]}]""" else "[]")
+        }}
+        val dias=repo.diasDisponibles(9,101,Modalidad.ONLINE,77,listOf("2027-01-15","2027-01-16","2027-01-17"))
+        assertEquals(listOf("2027-01-16"),dias.keys.toList())
+        assertEquals(3,server.requestCount) // Agenda y dos fechas publicadas; nunca consulta el día sin agenda.
+    }
+    @Test fun calendarioRespetaAgendaSemanalYNoRepiteFechas()=runBlocking {
+        server.enqueue(MockResponse().setBody("""[{"dia":"FRIDAY","desde":"09:00","hasta":"10:00"}]"""))
+        server.enqueue(MockResponse().setBody("""[{"inicio":"2027-01-15T09:00:00","fin":"2027-01-15T10:00:00","boxesDisponibles":[{"id":12,"nombre":"Sala Azul"}]}]"""))
+        val dias=repo.diasDisponibles(9,101,Modalidad.PRESENCIAL,null,listOf("2027-01-15","2027-01-15","2027-01-16"))
+        assertEquals(listOf("2027-01-15"),dias.keys.toList());assertEquals(2,server.requestCount)
+    }
+    @Test fun errorDeDisponibilidadNoSePresentaComoCalendarioVacio()=runBlocking {
+        server.enqueue(MockResponse().setBody("""[{"dia":"FRIDAY","desde":"09:00","hasta":"10:00"}]"""))
+        server.enqueue(MockResponse().setResponseCode(503))
+        try {repo.diasDisponibles(9,101,Modalidad.ONLINE,null,listOf("2027-01-15"));fail()}
+        catch(e:ErrorBackend){assertEquals(503,e.estado)}
+    }
 }

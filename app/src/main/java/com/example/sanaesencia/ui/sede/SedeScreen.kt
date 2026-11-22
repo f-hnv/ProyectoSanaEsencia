@@ -142,7 +142,7 @@ fun RecorridoContent(estado: RutaUiState, onConsultar: () -> Unit) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Tu recorrido en auto", style = MaterialTheme.typography.titleMedium)
-            Text("Al consultar, compartes tu ubicación con TrueWay a través de RapidAPI para calcular el recorrido hasta el centro.",
+            Text("Al consultar, compartes tu ubicación con el servidor de SanaEsencia y con TrueWay a través de RapidAPI para calcular el recorrido hasta el centro.",
                 style = MaterialTheme.typography.bodySmall)
             when(val resultado = estado) {
                 RutaUiState.Inicial -> Text("Consulta la distancia por calles y el tiempo estimado del viaje.")

@@ -19,6 +19,10 @@ object FechasReservas {
         return (0 until cantidad).map { formato("yyyy-MM-dd").format(cal.time).also { cal.add(Calendar.DAY_OF_MONTH,1) } }
     }
     fun diaVisible(dia:String)=mostrar("${dia}T12:00:00","EEE dd/MM")
+    fun diaSemana(dia:String):String {
+        val cal=Calendar.getInstance(zona).apply { timeInMillis=instante("${dia}T12:00:00") }
+        return listOf("SUNDAY","MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY","SATURDAY")[cal.get(Calendar.DAY_OF_WEEK)-1]
+    }
     fun futura(reserva:com.example.sanaesencia.data.remote.ReservaRemota,ahora:Long=System.currentTimeMillis())=
         reserva.estado=="CONFIRMADA" && instante(reserva.inicio)>ahora
     fun cancelable(reserva:com.example.sanaesencia.data.remote.ReservaRemota,ahora:Long=System.currentTimeMillis())=

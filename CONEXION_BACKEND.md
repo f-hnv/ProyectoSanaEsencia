@@ -1,5 +1,7 @@
 # Conexión de Android con los tres microservicios y TrueWay
 
+**Actualización AWS:** las compilaciones ahora utilizan de forma predeterminada `https://54.204.182.160/usuarios/`, `/catalogo/` y `/reservas/`. Ver `CONEXION_AWS.md` para el despliegue y las pruebas actuales. Las instrucciones de localhost de este documento describen el entorno local anterior; para usarlo ahora se deben sobrescribir las tres URL mediante propiedades Gradle.
+
 Registro, login, edición de nombre y apellido y asignación de roles usan `ms-usuarios` mediante Retrofit. El registro pide nombre, apellido, RUN válido sin puntos y con guion obligatorio, correo y contraseña de 8 a 64 caracteres (hasta 72 bytes UTF-8).
 
 El servidor decide el ID, rol y perfil profesional. La copia de Room no autentica: ni las cuentas antiguas del celular ni la cuenta administradora local de demostración permiten entrar. Las credenciales Basic Auth quedan únicamente en memoria y se borran al salir o finalizar el proceso. Si Android cierra la app hay que iniciar sesión otra vez. No se agregó JWT ni Swagger.
@@ -45,6 +47,8 @@ Se copiaron 120 cupos con fecha para 15 profesionales reales desde la agenda pú
 
 Esto es una copia fechada de disponibilidad pública, no una sincronización con Medilink ni una reserva real en el centro. Los horarios deben actualizarse cuando cambien o venzan. La app conserva las citas únicamente en su propio servidor.
 
+Desde la versión 1.3 el selector ofrece solo fechas con cupos disponibles dentro de los próximos 61 días. Primero consulta las fechas de la agenda del profesional y después verifica disponibilidad por servicio, modalidad, paciente y boxes, con hasta cuatro consultas simultáneas. Al cambiar profesional o modalidad se vuelve a consultar. Un fallo de red muestra reintento; no se interpreta como una agenda vacía. Al elegir un día se comprueban otra vez sus horas; la confirmación final sigue protegida por el servidor frente a reservas simultáneas.
+
 ## Pendiente de las etapas siguientes
 
 - Creación y edición de profesionales/servicios desde administración usando las APIs de catálogo.
@@ -66,32 +70,22 @@ Las pruebas de HTTP simulado validan los roles sin depender del servidor. Las de
 
 Verificación del 22/11/2026: compilación debug, lint y 51 pruebas unitarias correctas. `ReservasBackendRealTest` pasó contra los tres servicios y MySQL: creación presencial con box, reprogramación a online con el mismo ID, consulta del especialista vinculado, cancelación y disponibilidad liberada. Utilizó Samantha Bastías y su servicio real del catálogo con dos cuentas temporales, sin crear profesionales nuevos. Las cuentas quedaron desactivadas y las citas de prueba CANCELADAS. La ejecución es opt-in (`reservasE2e=true`) y requiere preparar un fixture privado en el dispositivo; no guarda credenciales en el repositorio. Las tres pruebas de `VistasPorRolTest` también pasaron. No se ha medido el porcentaje de cobertura ni se ha completado AWS o la firma release.
 
-## API externa: TrueWay Directions
+## API externa: TrueWay Directions con clave protegida
 
-La pantalla «Cómo llegar» permite consultar un recorrido en auto desde la ubicación actual hasta Caupolicán 220, Los Vilos. El botón explica que al consultar se envían las coordenadas a TrueWay mediante RapidAPI. No se envían nombres, RUN, correo, citas ni credenciales de los microservicios. La ubicación y el resultado no se guardan en Room.
+La pantalla Cómo llegar consulta un recorrido en auto hasta Caupolicán 220, Los Vilos. Al pulsar el botón se envían las coordenadas por HTTPS al servidor de SanaEsencia, que consulta TrueWay mediante RapidAPI. La pantalla informa de ambos destinatarios. No se envían nombre, RUN ni citas al proveedor.
 
-El recorrido sigue el patrón de las ramas EA3-Retrofit y EA3-ConsumoAPI de la profesora: interfaz Retrofit, DTO, repositorio, ViewModel con StateFlow y pantalla Compose con carga, éxito y error/reintento.
+Android utiliza `RutasApi.kt` con POST `api/rutas/sede` relativo a RESERVAS_API_URL. Envía la ubicación en el cuerpo JSON y la autorización Basic de la cuenta únicamente a SanaEsencia. `RutasRepository` comprueba la sesión, valida la respuesta y descarta resultados que llegan después de cerrar/cambiar sesión. `RutasViewModel` conserva los estados de carga, éxito y error, y evita el doble envío.
 
-- Proveedor: https://rapidapi.com/trueway/api/trueway-directions2
-- GET `https://trueway-directions2.p.rapidapi.com/FindDrivingRoute`
-- Query `stops`: `latitudOrigen,longitudOrigen;latitudSede,longitudSede`.
-- Headers `X-RapidAPI-Host` y `X-RapidAPI-Key`.
-- Se usan `route.distance` (metros) y `route.duration` (segundos). Se muestra tiempo estimado redondeado hacia arriba; no es navegación en vivo.
-- El recorrido por calles no sustituye la distancia en línea recta para la recomendación de atención online a más de 20 km.
-- Si falta clave, no hay ruta, falla la red o se agota la cuota, se muestra un mensaje y sigue disponible «Ver sede en mapas». No se inventa un resultado.
+La clave externa se conserva como TRUEWAY_API_KEY en el archivo privado de entorno de reservas en AWS. No se lee desde local.properties, no existe el campo BuildConfig.TRUEWAY_API_KEY y la aplicación no realiza una llamada directa a RapidAPI. El cliente del proveedor en Java no reenvía las credenciales Basic del paciente.
 
-### Configuración de desarrollo
+La API protege el consumo con autenticación, un destino fijo, validación de coordenadas y límites de cinco intentos por cuenta/minuto y 400 intentos globales/día UTC en memoria. No guarda coordenadas en MySQL. La ubicación se envía en el body y las respuestas llevan no-store. La cuota del proveedor sigue aplicando; el contador de la instancia se reinicia al reiniciar el proceso.
 
-Agregar `TRUEWAY_API_KEY=valor_de_tu_clave` sin comillas en `local.properties` y volver a compilar/instalar. También se admite la variable de entorno `TRUEWAY_API_KEY`. No subir ese archivo ni claves al repositorio. Se utiliza un cliente HTTP independiente sin logging de claves ni autorización Basic de SanaEsencia.
+Se usan route.distance en metros y route.duration en segundos. El recorrido por calles no sustituye la distancia en línea recta para la recomendación online de más de 20 km. Si falla la red, la sesión o el proveedor, se muestra un mensaje y permanece disponible Ver sede en mapas. No se inventa una distancia.
 
-La clave incluida en BuildConfig forma parte del APK; excluirla de Git no la vuelve secreta dentro de una aplicación distribuida. Antes de entregar públicamente el APK, revisar las restricciones y el mecanismo de protección de credenciales del proveedor. El despliegue público y la firma release siguen pendientes.
+La estructura sigue las ramas EA3-Retrofit y EA3-ConsumoAPI de la profesora: interfaz, DTO, repositorio, ViewModel con StateFlow y pantalla Compose.
 
-### Verificación realizada en RapidAPI
-
-Se probó `stops=-31.900000,-71.500000;-31.909825,-71.512501` el 21 de noviembre de 2026. La respuesta fue HTTP 200, `route.distance=1825` y `route.duration=369`. Esto verifica ese recorrido de Los Vilos; no implica cobertura comprobada para todo Chile. La integración Android requiere configurar la clave y probarse también desde el dispositivo.
-
-Ejemplos de referencia:
 - https://github.com/nancyB3a/DSY1105_2026/tree/EA3-Retrofit
 - https://github.com/nancyB3a/DSY1105_2026/tree/EA3-ConsumoAPI
+- https://rapidapi.com/trueway/api/trueway-directions2
 
-Verificación de la integración Android: compilación debug, lint y 41 pruebas unitarias correctas (9 de TrueWay). En el emulador pasaron las 4 pruebas de RecorridoSedeTest, incluida la llamada real con la clave configurada, y las 2 pruebas existentes de SedeGpsTest. Se reinstaló la aplicación debug al terminar. No se generó un APK release firmado ni se realizaron commits en esta etapa.
+La configuración de firma y la instalación del APK se documentan en APK_FIRMADO.md. Las llaves privadas y sus contraseñas se conservan fuera de Git.

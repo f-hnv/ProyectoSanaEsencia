@@ -27,7 +27,6 @@ fun AgendaServidorScreen(servicioLocal:Long?,perfilLocal:Long?,reserva:Long?,onV
     val factory=ViewModelFactory(app.container)
     val vm:ReservaServidorViewModel=viewModel(factory=factory)
     val s by vm.estado.collectAsState()
-    var pagina by remember { mutableIntStateOf(0) }
     LaunchedEffect(servicioLocal,perfilLocal,reserva) { vm.preparar(servicioLocal,perfilLocal,reserva) }
     Scaffold(topBar={ TopAppBar(title={Text(if(reserva==null) "Agendar Sesión" else "Reprogramar Sesión")},
         navigationIcon={TextButton(onClick=onVolver,enabled=!s.ocupada){Text("Volver")}}) }) { padding ->
@@ -76,21 +75,15 @@ fun AgendaServidorScreen(servicioLocal:Long?,perfilLocal:Long?,reserva:Long?,onV
             }
             Text("Elige un día · hora de Chile",style=MaterialTheme.typography.titleMedium)
             Text("Se muestran las horas publicadas para el profesional y la fecha elegida. Los cupos copiados de la web son una referencia y no se sincronizan con la agenda real del centro.")
-            val dias=FechasReservas.dias()
-            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
-                TextButton(onClick={pagina--},enabled=pagina>0 && !s.ocupada){Text("Anterior")}
-                TextButton(onClick={pagina++},enabled=(pagina+1)*7<dias.size && !s.ocupada){Text("Más fechas")}
-            }
-            dias.drop(pagina*7).take(7).chunked(2).forEach { fila ->
-                Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) { fila.forEach { dia ->
-                    FilterChip(selected=s.dia==dia,onClick={vm.dia(dia)},enabled=!s.ocupada,label={Text(FechasReservas.diaVisible(dia))},modifier=Modifier.testTag("fecha-$dia"))
-                } }
-            }
-            s.dia?.let {Text("Día elegido: ${FechasReservas.diaVisible(it)}")}
+            if(p==null) Text("Elige un especialista para consultar sus días disponibles.")
+            else SelectorDiasDisponibles(s.diasDisponibles,s.dia,s.cargandoDias,s.errorDias,!s.ocupada,
+                vm::dia,vm::cargarDias)
+            if(!s.cargandoDias) s.dia?.let {Text("Día elegido: ${FechasReservas.diaVisible(it)}")}
             Text("Horarios disponibles",style=MaterialTheme.typography.titleMedium)
             when {
                 p==null -> Text("Elige un especialista.")
-                s.dia==null -> Text("Selecciona una fecha para consultar su agenda.")
+                s.cargandoDias -> Text("Comprobando disponibilidad…")
+                s.dia==null -> Text("Selecciona uno de los días disponibles.")
                 s.cargandoTurnos -> CircularProgressIndicator()
                 s.errorTurnos!=null -> { Text(s.errorTurnos!!,color=MaterialTheme.colorScheme.error);TextButton(onClick=vm::cargarTurnos){Text("Reintentar horarios")} }
                 s.turnos.isEmpty() -> Text("No hay horas disponibles ese día. El especialista debe tener su agenda configurada y existir un box libre para atención presencial.")
@@ -109,6 +102,30 @@ fun AgendaServidorScreen(servicioLocal:Long?,perfilLocal:Long?,reserva:Long?,onV
                 Text(if(s.ocupada) "Guardando…" else if(reserva==null) "Confirmar Reserva" else "Guardar Cambios")
             }
             if(s.ambigua) Button(onClick=onVerCitas){Text("Revisar mis citas")}
+        }
+    }
+}
+
+@Composable
+fun SelectorDiasDisponibles(dias:List<String>,seleccionado:String?,cargando:Boolean,error:String?,
+    enabled:Boolean,onSeleccionar:(String)->Unit,onActualizar:()->Unit) {
+    var pagina by remember(dias) { mutableIntStateOf(0) }
+    when {
+        cargando -> { CircularProgressIndicator();Text("Consultando días con horas disponibles…") }
+        error!=null -> { Text(error,color=MaterialTheme.colorScheme.error);TextButton(onClick=onActualizar,enabled=enabled){Text("Reintentar días")} }
+        else -> {
+            if(dias.isEmpty()) Text("No hay días con horas disponibles para este especialista y modalidad en los próximos 61 días.")
+            if(dias.size>7) Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
+                TextButton(onClick={pagina--},enabled=pagina>0 && enabled){Text("Anterior")}
+                TextButton(onClick={pagina++},enabled=(pagina+1)*7<dias.size && enabled){Text("Más fechas")}
+            }
+            dias.drop(pagina*7).take(7).chunked(2).forEach { fila ->
+                Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) { fila.forEach { dia ->
+                    FilterChip(selected=seleccionado==dia,onClick={onSeleccionar(dia)},enabled=enabled,
+                        label={Text(FechasReservas.diaVisible(dia))},modifier=Modifier.testTag("fecha-$dia"))
+                } }
+            }
+            TextButton(onClick=onActualizar,enabled=enabled){Text("Actualizar disponibilidad")}
         }
     }
 }

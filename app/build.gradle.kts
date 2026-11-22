@@ -1,19 +1,16 @@
-import java.util.Properties
-
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
 }
 
-// Configuración local excluida de Git. No registrar el valor de la clave.
-val configuracionLocal = Properties().apply {
-    rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use { load(it) }
-}
-val claveTrueWay = providers.environmentVariable("TRUEWAY_API_KEY")
-    .getOrElse(configuracionLocal.getProperty("TRUEWAY_API_KEY", ""))
 fun literalJava(valor: String) = "\"" + valor.replace("\\", "\\\\")
     .replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r") + "\""
+
+val archivoFirmaRelease = providers.environmentVariable("SANA_RELEASE_STORE_FILE").orNull
+val claveAlmacenRelease = providers.environmentVariable("SANA_RELEASE_STORE_PASSWORD").orNull
+val claveFirmaRelease = providers.environmentVariable("SANA_RELEASE_KEY_PASSWORD").orNull
+val firmaReleaseDisponible = listOf(archivoFirmaRelease, claveAlmacenRelease, claveFirmaRelease).all { !it.isNullOrBlank() }
 
 android {
     namespace = "com.example.sanaesencia"
@@ -25,26 +22,34 @@ android {
         applicationId = "com.example.sanaesencia"
         minSdk = 24
         targetSdk = 37
-        versionCode = 2
-        versionName = "1.1"
+        versionCode = 4
+        versionName = "1.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        buildConfigField("String", "TRUEWAY_API_KEY", literalJava(claveTrueWay))
+        buildConfigField("String", "USUARIOS_API_URL", literalJava(providers.gradleProperty("USUARIOS_API_URL").getOrElse("https://54.204.182.160/usuarios/")))
+        buildConfigField("String", "CATALOGO_API_URL", literalJava(providers.gradleProperty("CATALOGO_API_URL").getOrElse("https://54.204.182.160/catalogo/")))
+        buildConfigField("String", "RESERVAS_API_URL", literalJava(providers.gradleProperty("RESERVAS_API_URL").getOrElse("https://54.204.182.160/reservas/")))
     }
 
-    buildTypes {
-        debug {
-            buildConfigField("String", "RESERVAS_API_URL", "\"${providers.gradleProperty("RESERVAS_API_URL").getOrElse("http://127.0.0.1:8082/")}\"")
-            buildConfigField("String", "USUARIOS_API_URL", "\"${providers.gradleProperty("USUARIOS_API_URL").getOrElse("http://127.0.0.1:8080/")}\"")
-            buildConfigField("String", "CATALOGO_API_URL", "\"${providers.gradleProperty("CATALOGO_API_URL").getOrElse("http://127.0.0.1:8081/")}\"")
+    signingConfigs {
+        if (firmaReleaseDisponible) {
+            create("sanaRelease") {
+                storeFile = file(archivoFirmaRelease!!)
+                storePassword = claveAlmacenRelease
+                keyAlias = "sanaesencia"
+                keyPassword = claveFirmaRelease
+                storeType = "JKS"
+            }
         }
+    }
+    buildTypes {
         release {
-            buildConfigField("String", "RESERVAS_API_URL", "\"${providers.gradleProperty("RESERVAS_API_URL").getOrElse("https://reservas.sanaesencia.invalid/")}\"")
-            buildConfigField("String", "USUARIOS_API_URL", "\"${providers.gradleProperty("USUARIOS_API_URL").getOrElse("https://api.sanaesencia.invalid/")}\"")
-            buildConfigField("String", "CATALOGO_API_URL", "\"${providers.gradleProperty("CATALOGO_API_URL").getOrElse("https://catalogo.sanaesencia.invalid/")}\"")
+            if (firmaReleaseDisponible) signingConfig = signingConfigs.getByName("sanaRelease")
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             optimization {
-                enable = true
-                packageScope = setOf("androidx.**", "kotlin.**", "kotlinx.**")
+                // La optimización parcial de Kotlin causaba IllegalAccessError al iniciar release.
+                // La firma y la protección de credenciales no dependen de ofuscar el APK.
+                enable = false
             }
         }
     }

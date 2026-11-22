@@ -1,7 +1,8 @@
 package com.example.sanaesencia.data.repository
 
-import com.example.sanaesencia.data.remote.TrueWayApi
-import com.example.sanaesencia.domain.model.SedeSanaesencia
+import com.example.sanaesencia.data.remote.RutasApi
+import com.example.sanaesencia.data.remote.OrigenRuta
+import com.example.sanaesencia.data.remote.SesionBackend
 import kotlinx.coroutines.CancellationException
 import retrofit2.HttpException
 import java.io.IOException
@@ -19,15 +20,16 @@ data class RecorridoSede(val metros: Double, val segundos: Double) {
 
 class ErrorRuta(override val message: String): Exception(message)
 
-class RutasRepository(private val api: TrueWayApi, private val clave: () -> String) {
+class RutasRepository(private val api:RutasApi,
+    private val autorizacion:()->String?={SesionBackend.actual()?.autorizacion}) {
     suspend fun consultar(latitud: Double, longitud: Double): RecorridoSede {
         if (!latitud.isFinite() || !longitud.isFinite() || latitud !in -90.0..90.0 || longitud !in -180.0..180.0)
             throw ErrorRuta("La ubicación no es válida. Vuelve a consultar tu ubicación.")
-        val credencial = clave().trim()
-        if (credencial.isBlank()) throw ErrorRuta("La consulta de recorridos aún no está disponible. Puedes abrir la sede en mapas.")
-        val puntos = "$latitud,$longitud;${SedeSanaesencia.LATITUD},${SedeSanaesencia.LONGITUD}"
+        val credencial = autorizacion()?.trim().orEmpty()
+        if (credencial.isBlank()) throw ErrorRuta("Inicia sesión para consultar el recorrido. También puedes abrir la sede en mapas.")
         try {
-            val respuesta = api.ruta(puntos, credencial)
+            val respuesta = api.ruta(OrigenRuta(latitud,longitud), credencial)
+            if(autorizacion()?.trim()!=credencial)throw CancellationException("La sesión cambió durante la consulta")
             if (!respuesta.isSuccessful) throw HttpException(respuesta)
             val ruta = respuesta.body()?.route
             val metros = ruta?.distance
@@ -39,7 +41,7 @@ class RutasRepository(private val api: TrueWayApi, private val clave: () -> Stri
         catch (e: ErrorRuta) { throw e }
         catch (e: HttpException) {
             throw ErrorRuta(when(e.code()) {
-                401, 403 -> "El servicio de recorridos no está habilitado. Puedes abrir la sede en mapas."
+                401, 403 -> "Inicia sesión nuevamente para consultar el recorrido. Puedes abrir la sede en mapas."
                 429 -> "Se alcanzó el límite de consultas de recorridos. Inténtalo más tarde."
                 else -> "No se pudo consultar el recorrido. Inténtalo nuevamente."
             })
