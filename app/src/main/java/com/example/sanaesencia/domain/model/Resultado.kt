@@ -8,6 +8,7 @@ sealed class Resultado<out T> {
 
 // Cada error trae el mensaje en español, listo para mostrar en la UI.
 sealed class ErrorAgenda(val mensaje: String) {
+    data class Catalogo(val detalle:String):ErrorAgenda(detalle)
     data object PacienteOcupado : ErrorAgenda("Ya tienes una cita que coincide con este horario")
     data object SinBox : ErrorAgenda("No hay boxes disponibles en ese horario. Elige otra hora o modalidad online si está disponible")
     data object HorarioFueraAtencion : ErrorAgenda("Selecciona uno de los horarios disponibles del centro")

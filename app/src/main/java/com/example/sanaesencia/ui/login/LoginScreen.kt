@@ -151,9 +151,6 @@ fun LoginScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        var verDemo by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
-        TextButton(onClick={verDemo=!verDemo}) { Text("Acceso de administración de demostración") }
-        if(verDemo) Text("Solo demostración local\nCorreo: admin.demo@sanaesencia.local\nContraseña: DemoCentro2026!",style=MaterialTheme.typography.bodySmall)
         TextButton(onClick = onNavigateToRegistro, enabled = !cargando) {
             Text("¿No tienes cuenta? Regístrate aquí")
         }

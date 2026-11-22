@@ -55,35 +55,4 @@ class AgendaMensualRolesTest {
         } finally { db.close() }
     }
 
-    @Test fun soloAdminAsignaRolesYUnaCuentaPorPerfilProfesional() = runBlocking {
-        val cuenta = CuentaRepository(context)
-        SeedData.poblarSiVacia(cuenta.db)
-        val sufijo = System.nanoTime()
-        val primero = "rol.primero.$sufijo@example.com"
-        val segundo = "rol.segundo.$sufijo@example.com"
-        val terapeuta = "rol.terapeuta.$sufijo@example.com"
-        cuenta.registrar("Prueba Roles Uno", primero, "Prueba123")
-        cuenta.registrar("Prueba Roles Dos", segundo, "Prueba123")
-        cuenta.entrar(primero, "Prueba123")
-        try {
-            cuenta.cambiarRol(segundo, "ESPECIALISTA", 1)
-            fail("Un paciente no debe poder asignar roles")
-        } catch (_: IllegalArgumentException) { }
-        cuenta.entrar(CuentaRepository.ADMIN_DEMO, CuentaRepository.CLAVE_DEMO)
-        cuenta.crearEspecialista("Terapeuta de prueba", terapeuta, "Prueba123", "Prueba", "Datos ficticios", listOf(1))
-        val id = cuenta.db.centroDao().usuario(terapeuta)!!.especialistaId!!
-        cuenta.cambiarRol(terapeuta, "PACIENTE", null)
-        cuenta.cambiarRol(primero, "ESPECIALISTA", id)
-        assertEquals(id, cuenta.db.centroDao().usuario(primero)!!.especialistaId)
-        try {
-            cuenta.cambiarRol(segundo, "ESPECIALISTA", id)
-            fail("Dos cuentas no deben compartir el mismo profesional")
-        } catch (_: IllegalArgumentException) { }
-        try {
-            cuenta.cambiarRol(CuentaRepository.ADMIN_DEMO, "PACIENTE", null)
-            fail("No se debe degradar la cuenta administradora")
-        } catch (_: IllegalArgumentException) { }
-        assertEquals("ESPECIALISTA", cuenta.entrar(primero, "Prueba123")!!.rol)
-        cuenta.salir()
-    }
 }

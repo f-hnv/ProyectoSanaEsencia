@@ -14,9 +14,11 @@ import com.example.sanaesencia.viewmodel.*
 /** Consulta GPS en la propia reserva: no es necesario pasar primero por «Cómo llegar». */
 @Composable
 fun UbicacionReserva(factory: ViewModelFactory, permiteOnline: Boolean, modalidad: Modalidad,
-    enabled: Boolean, onElegirOnline: () -> Unit) {
+    enabled: Boolean, onElegirOnline: () -> Unit,
+    onUbicacionCambio: (EstadoUbicacion) -> Unit = {}) {
     val vm: SedeViewModel = viewModel(key = "ubicacion-reserva", factory = factory)
     val estado by vm.uiState.collectAsState()
+    LaunchedEffect(estado.estado) { onUbicacionCambio(estado.estado) }
     val umbral by ConfiguracionCentro.umbralKm.collectAsState()
     val permisos = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         vm.onPermisoResultado(vm.tienePermiso())

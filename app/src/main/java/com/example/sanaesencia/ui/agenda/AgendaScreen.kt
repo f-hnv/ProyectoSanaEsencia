@@ -34,6 +34,7 @@ import com.example.sanaesencia.domain.model.HorariosAgenda
 import com.example.sanaesencia.domain.model.Modalidad
 import java.text.NumberFormat
 import java.util.Locale
+import com.example.sanaesencia.utils.precioFormateado
 import com.example.sanaesencia.ui.components.SanaPrimaryButton as Button
 import com.example.sanaesencia.ui.components.SanaChoiceChip as FilterChip
 
@@ -42,22 +43,30 @@ import com.example.sanaesencia.ui.components.SanaChoiceChip as FilterChip
 fun AgendaScreen(
     servicioIdPreseleccionado: Long? = null,
     citaIdAEditar: Long? = null,
+    especialistaIdPreseleccionado:Long? = null,
+    viewModelOverride:AgendaViewModel? = null,
+    onVerCitas: (() -> Unit)? = null,
     onNavigateToSede: () -> Unit = {},
     onNavigateBack: () -> Unit
 ) {
+    if(viewModelOverride==null) {
+        AgendaServidorScreen(servicioIdPreseleccionado,especialistaIdPreseleccionado,citaIdAEditar,
+            onNavigateBack,onVerCitas ?: onNavigateBack)
+        return
+    }
     val context = LocalContext.current
     val app = context.applicationContext as com.example.sanaesencia.SanaesenciaApp
     val factory = com.example.sanaesencia.viewmodel.ViewModelFactory(app.container)
-    val viewModel: AgendaViewModel = viewModel(factory = factory)
+    val viewModel: AgendaViewModel = viewModelOverride ?: viewModel(factory = factory)
 
     val estado by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    LaunchedEffect(servicioIdPreseleccionado, citaIdAEditar) {
+    LaunchedEffect(servicioIdPreseleccionado, citaIdAEditar,especialistaIdPreseleccionado) {
         if (citaIdAEditar != null) {
             viewModel.prepararEdicion(citaIdAEditar)
         } else {
-            if (servicioIdPreseleccionado != null) viewModel.onServicioSeleccionado(servicioIdPreseleccionado)
+            if (servicioIdPreseleccionado != null) viewModel.onServicioSeleccionado(servicioIdPreseleccionado,especialistaIdPreseleccionado)
         }
     }
 
@@ -217,7 +226,7 @@ fun AgendaScreen(
                         Text(if (estado.modalidad == Modalidad.ONLINE) "Atención online" else "Presencial · Caupolicán 220, Los Vilos")
                         estado.servicioSeleccionado?.let { servicio ->
                             val precio = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("es-CL")).apply { maximumFractionDigits = 0 }
-                            Text("${servicio.duracionMin} minutos · ${precio.format(servicio.precioClp)}")
+                            Text("${servicio.duracionMin} minutos · ${servicio.precioFormateado()}")
                         }
                         if (estado.modalidad == Modalidad.PRESENCIAL) {
                             Text("El box libre se asignará al confirmar y aparecerá en tu cita.")
@@ -288,7 +297,7 @@ private fun SelectorEspecialistas(
             val seleccionado = especialista.id == seleccionadoId
             // Toda la tarjeta es una única opción accesible, incluido el indicador de selección.
             Card(
-                modifier = Modifier.fillMaxWidth().selectable(
+                modifier = Modifier.fillMaxWidth().testTag("especialista-agenda-${especialista.id}").selectable(
                     selected = seleccionado,
                     enabled = enabled,
                     role = Role.RadioButton,

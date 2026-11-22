@@ -1,7 +1,6 @@
 package com.example.sanaesencia
 
 import android.app.Application
-import com.example.sanaesencia.data.local.seed.CatalogoCentro
 import com.example.sanaesencia.di.AppContainer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -20,10 +19,9 @@ class SanaesenciaApp : Application() {
         container = AppContainer(this)
         com.example.sanaesencia.domain.model.ConfiguracionCentro.cargar(this)
 
-        // Carga el catálogo público sin crear cuentas ni reservas ficticias.
+        // Retira credenciales antiguas. El catálogo se obtiene de la API al abrir su pantalla.
         appScope.launch {
-            CatalogoCentro.instalar(container.database)
-            com.example.sanaesencia.data.repository.CuentaRepository(this@SanaesenciaApp).prepararDemostracion()
+            com.example.sanaesencia.data.repository.CuentaRepository(this@SanaesenciaApp).limpiarCredencialesAnteriores()
         }
 
 

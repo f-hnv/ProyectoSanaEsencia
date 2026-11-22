@@ -31,11 +31,14 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
+import org.junit.After
 import com.example.sanaesencia.domain.model.HorariosAgenda
 import com.example.sanaesencia.domain.model.Modalidad
 import java.util.Calendar
 
 class AgendaEspecialistasTest {
+    private var vmPantalla:AgendaViewModel?=null
+    @After fun limpiarVmPantalla() { vmPantalla?.viewModelScope?.cancel() }
     @get:Rule
     val compose = createComposeRule()
 
@@ -80,9 +83,12 @@ class AgendaEspecialistasTest {
             com.example.sanaesencia.data.local.seed.CatalogoCentro.instalar(app.container.database)
             app.container.database.servicioDao().obtenerPorNombre("Psicología infantojuvenil")!!.id
         }
+        val vm=AgendaViewModel(app.container.citaRepository,ServicioRepository(app.container.database.servicioDao()),
+            EspecialistaRepository(app.container.database.especialistaDao()),"prueba.agenda@example.com")
+        vmPantalla=vm
         compose.setContent {
             SanaesenciaTheme {
-                AgendaScreen(servicioIdPreseleccionado = servicioId, onNavigateBack = {})
+                AgendaScreen(servicioIdPreseleccionado = servicioId, viewModelOverride=vm, onNavigateBack = {})
             }
         }
         compose.waitUntil(10_000) {

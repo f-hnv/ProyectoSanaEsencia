@@ -53,22 +53,13 @@ fun PerfilScreen(
     val context = LocalContext.current
     val fotoUri by viewModel.fotoPerfilUri
     var nombre by rememberSaveable { mutableStateOf("") }
+    var apellido by rememberSaveable { mutableStateOf("") }
     var telefono by rememberSaveable { mutableStateOf("") }
-    var cambiarClave by remember { mutableStateOf(false) }
-    var claveActual by remember { mutableStateOf("") }
-    var nuevaClave by remember { mutableStateOf("") }
-    var confirmarClave by remember { mutableStateOf("") }
     LaunchedEffect(viewModel.perfil?.email) {
-        nombre = viewModel.perfil?.nombre.orEmpty(); telefono = viewModel.perfil?.telefono.orEmpty()
+        nombre = com.example.sanaesencia.data.remote.SesionBackend.actual()?.usuario?.nombre.orEmpty()
+        apellido = com.example.sanaesencia.data.remote.SesionBackend.actual()?.usuario?.apellido.orEmpty()
+        telefono = viewModel.perfil?.telefono.orEmpty()
     }
-    if (cambiarClave) AlertDialog(onDismissRequest={ cambiarClave=false },
-        title={ Text("Cambiar contraseña") }, text={ Column {
-            OutlinedTextField(claveActual,{claveActual=it},label={Text("Contraseña actual")},visualTransformation=PasswordVisualTransformation())
-            OutlinedTextField(nuevaClave,{nuevaClave=it},label={Text("Nueva contraseña")},visualTransformation=PasswordVisualTransformation())
-            OutlinedTextField(confirmarClave,{confirmarClave=it},label={Text("Confirmar nueva contraseña")},visualTransformation=PasswordVisualTransformation())
-            viewModel.mensaje?.let { Text(it) }
-        } }, confirmButton={ TextButton(onClick={viewModel.cambiarClave(claveActual,nuevaClave,confirmarClave)},enabled=!viewModel.guardando){Text("Actualizar contraseña")} },
-        dismissButton={ TextButton(onClick={cambiarClave=false; claveActual="";nuevaClave="";confirmarClave=""}){Text("Cerrar")} })
     var tempCameraUri by rememberSaveable { mutableStateOf<String?>(null) }
     var errorRecurso by remember { mutableStateOf<String?>(null) }
 
@@ -149,15 +140,19 @@ fun PerfilScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
             Text(viewModel.perfil?.email.orEmpty(),style=MaterialTheme.typography.bodyMedium)
+            com.example.sanaesencia.data.remote.SesionBackend.actual()?.usuario?.let {
+                Text("Número de cuenta: ${it.id}", style=MaterialTheme.typography.bodySmall)
+                Text("RUN: ${it.run}", style=MaterialTheme.typography.bodySmall)
+            }
             Text("Perfil: ${viewModel.perfil?.rol?.lowercase() ?: "sin sesión"}",style=MaterialTheme.typography.labelMedium)
-            OutlinedTextField(nombre,{nombre=it},label={Text("Nombre completo")},modifier=Modifier.fillMaxWidth(),singleLine=true)
+            OutlinedTextField(nombre,{nombre=it},label={Text("Nombre")},modifier=Modifier.fillMaxWidth(),singleLine=true)
+            OutlinedTextField(apellido,{apellido=it},label={Text("Apellido")},modifier=Modifier.fillMaxWidth(),singleLine=true)
             OutlinedTextField(telefono,{telefono=it},label={Text("Teléfono de contacto")},modifier=Modifier.fillMaxWidth(),singleLine=true,
                 keyboardOptions=androidx.compose.foundation.text.KeyboardOptions(keyboardType=androidx.compose.ui.text.input.KeyboardType.Phone))
-            ElevatedButton(onClick={teclado?.hide();foco.clearFocus();viewModel.guardar(nombre,telefono)},enabled=!viewModel.guardando && viewModel.perfil!=null,
+            ElevatedButton(onClick={teclado?.hide();foco.clearFocus();viewModel.guardar(nombre,telefono,apellido)},enabled=!viewModel.guardando && viewModel.perfil!=null,
                 modifier=Modifier.fillMaxWidth()){Text(if(viewModel.guardando) "Guardando…" else "Guardar perfil")}
             viewModel.mensaje?.let { Text(it,modifier=Modifier.padding(vertical=8.dp)) }
-            TextButton(onClick={cambiarClave=true}){Text("Cambiar contraseña")}
-            Text("Tu perfil y tu foto se guardan en este dispositivo.",style=MaterialTheme.typography.bodySmall)
+            Text("El nombre y apellido se guardan en tu cuenta. El teléfono y la foto se conservan en este dispositivo.",style=MaterialTheme.typography.bodySmall)
             Spacer(modifier = Modifier.height(20.dp))
 
             Row(
@@ -197,8 +192,7 @@ fun PerfilScreen(
             // Botón de cerrar sesión
             OutlinedButton(
                 onClick = {
-                    context.getSharedPreferences("sanaesencia_prefs", Context.MODE_PRIVATE)
-                        .edit().remove("email_sesion").apply()
+                    com.example.sanaesencia.data.repository.CuentaRepository(context).salir()
                     onLogout()
                 },
                 modifier = Modifier.fillMaxWidth(),

@@ -8,7 +8,7 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-/** Gestiona la validación del acceso, la sesión local y el estado de la bienvenida. */
+/** Valida el acceso contra usuarios y mantiene el estado de la bienvenida. */
 class LoginViewModel : ViewModel() {
 
     private val _email = mutableStateOf("")
@@ -65,19 +65,17 @@ class LoginViewModel : ViewModel() {
 
             viewModelScope.launch {
                 try {
-                    val cuenta = com.example.sanaesencia.data.repository.CuentaRepository(context).entrar(_email.value,_password.value)
-                    if (cuenta != null) {
-                        _accesoConcedido.value = true
-                        delay(900)
-                        _cargando.value = false
-                        onSuccess()
-                    } else {
-                        _cargando.value = false
-                        _passwordError.value = "Credenciales incorrectas o cuenta desactivada"
-                    }
-                } catch (_: Exception) {
+                    com.example.sanaesencia.data.repository.CuentaRepository(context).entrar(_email.value,_password.value)
+                    _password.value = ""
+                    _accesoConcedido.value = true
+                    delay(900)
                     _cargando.value = false
-                    _passwordError.value = "No se pudo iniciar sesión. Reintenta."
+                    onSuccess()
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    _cargando.value = false
+                    _passwordError.value = e.message ?: "No se pudo iniciar sesión. Reintenta."
                 }
             }
         }

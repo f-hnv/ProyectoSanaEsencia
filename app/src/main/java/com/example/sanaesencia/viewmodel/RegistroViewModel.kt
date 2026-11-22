@@ -7,13 +7,28 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
 import androidx.lifecycle.ViewModel
 
-/** Valida el formulario de registro y conserva una cuenta de demostración en SharedPreferences. */
+/** Valida el formulario y registra al paciente en el servidor. */
 class RegistroViewModel : ViewModel() {
 
     private val _nombre = mutableStateOf("")
     val nombre: State<String> = _nombre
     private val _nombreError = mutableStateOf<String?>(null)
     val nombreError: State<String?> = _nombreError
+    val apellido = mutableStateOf("")
+    val apellidoError = mutableStateOf<String?>(null)
+    val run = mutableStateOf("")
+    val runError = mutableStateOf<String?>(null)
+    val cargando = mutableStateOf(false)
+    val errorGeneral = mutableStateOf<String?>(null)
+
+    fun onApellidoChange(valor: String) {
+        apellido.value = valor
+        apellidoError.value = com.example.sanaesencia.utils.ValidacionRegistro.nombre(valor)
+    }
+    fun onRunChange(valor: String) {
+        run.value = valor.uppercase()
+        runError.value = com.example.sanaesencia.utils.ValidacionRegistro.run(run.value)
+    }
 
     private val _email = mutableStateOf("")
     val email: State<String> = _email
@@ -32,7 +47,7 @@ class RegistroViewModel : ViewModel() {
 
     fun onNombreChange(newValue: String) {
         _nombre.value = newValue
-        _nombreError.value = if (newValue.trim().length < 3) "El nombre debe tener al menos 3 caracteres" else null
+        _nombreError.value = com.example.sanaesencia.utils.ValidacionRegistro.nombre(newValue)
     }
 
     fun onEmailChange(newValue: String) {
@@ -42,13 +57,7 @@ class RegistroViewModel : ViewModel() {
 
     fun onPasswordChange(newValue: String) {
         _password.value = newValue
-        if (newValue.isBlank()) {
-            _passwordError.value = "La contraseña es obligatoria"
-        } else if (newValue.length < 6) {
-            _passwordError.value = "Debe tener al menos 6 caracteres"
-        } else {
-            _passwordError.value = null
-        }
+        _passwordError.value = com.example.sanaesencia.utils.ValidacionRegistro.clave(newValue)
         if (_confirmPassword.value.isNotEmpty()) onConfirmPasswordChange(_confirmPassword.value)
     }
 
@@ -62,22 +71,31 @@ class RegistroViewModel : ViewModel() {
     }
 
     fun registrar(context: Context, onSuccess: () -> Unit) {
+        if (cargando.value) return
+        errorGeneral.value = null
         onNombreChange(_nombre.value)
+        onApellidoChange(apellido.value)
+        onRunChange(run.value)
         onEmailChange(_email.value)
         onPasswordChange(_password.value)
         onConfirmPasswordChange(_confirmPassword.value)
 
-        if (_nombreError.value == null && _emailError.value == null &&
+        if (apellidoError.value == null && runError.value == null && _nombreError.value == null && _emailError.value == null &&
             _passwordError.value == null && _confirmPasswordError.value == null &&
             _nombre.value.isNotBlank() && _email.value.isNotBlank() &&
             _password.value.isNotBlank() && _confirmPassword.value.isNotBlank()
         ) {
+            cargando.value = true
             viewModelScope.launch {
                 try {
                     com.example.sanaesencia.data.repository.CuentaRepository(context)
-                        .registrar(_nombre.value,_email.value,_password.value)
+                        .registrar(_nombre.value,_email.value,_password.value,apellido.value,run.value)
+                    _password.value = ""
+                    _confirmPassword.value = ""
                     onSuccess()
-                } catch (e: Exception) { _emailError.value = e.message ?: "No se pudo crear la cuenta" }
+                } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                catch (e: Exception) { errorGeneral.value = e.message ?: "No se pudo crear la cuenta" }
+                finally { cargando.value = false }
             }
         }
     }

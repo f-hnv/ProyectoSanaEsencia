@@ -1,110 +1,92 @@
 package com.example.sanaesencia.ui.catalogo
 
-import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.sanaesencia.SanaesenciaApp
 import com.example.sanaesencia.data.local.entity.ServicioEntity
+import com.example.sanaesencia.data.repository.CatalogoEstado
 import com.example.sanaesencia.ui.theme.SanaesenciaTheme
-
+import com.example.sanaesencia.utils.precioFormateado
 import com.example.sanaesencia.viewmodel.CatalogoViewModel
 import com.example.sanaesencia.viewmodel.ViewModelFactory
 
-/** Conecta el estado del catálogo con la interfaz y entrega los eventos de navegación. */
 @Composable
-fun CatalogoScreen(
-    onNavigateBack: () -> Unit,
-    onNavigateToAgenda: (Long) -> Unit
-) {
-    // El contenedor comparte los repositorios y la base de datos durante la ejecución de la app.
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val app = context.applicationContext as com.example.sanaesencia.SanaesenciaApp
-    val factory = com.example.sanaesencia.viewmodel.ViewModelFactory(app.container)
-
-    // La fábrica construye el ViewModel con sus dependencias, sin consultar Room desde la vista.
-    val viewModel: CatalogoViewModel = viewModel(factory = factory)
-
-    // StateFlow publica las actualizaciones del catálogo para que Compose recomponga la lista.
-    val estado by viewModel.uiState.collectAsState()
-    val listaServicios = estado.servicios
-
-    // El componente visual recibe datos y callbacks; no depende del acceso a la base de datos.
-    CatalogoContent(
-        listaServicios = listaServicios,
-        onNavigateBack = onNavigateBack,
-        onNavigateToAgenda = onNavigateToAgenda
-    )
+fun CatalogoScreen(onNavigateBack:()->Unit,onNavigateToAgenda:(Long,Long)->Unit) {
+    val app=LocalContext.current.applicationContext as SanaesenciaApp
+    val vm:CatalogoViewModel=viewModel(factory=ViewModelFactory(app.container))
+    val estado by vm.uiState.collectAsState()
+    CatalogoContent(estado,onNavigateBack,onNavigateToAgenda,vm::actualizar)
 }
 
-/** Renderiza los servicios y comunica la selección del servicio a la navegación. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CatalogoContent(
-    listaServicios: List<ServicioEntity>,
-    onNavigateBack: () -> Unit,
-    onNavigateToAgenda: (Long) -> Unit
-) {
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Nuestros Servicios") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Volver")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
-            )
-        }
-    ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(horizontal = 16.dp),
-            contentPadding = PaddingValues(bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            items(listaServicios) { servicio ->
-                Card(
-                    onClick = { onNavigateToAgenda(servicio.id) },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.secondary.copy(alpha = .6f))
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            text = servicio.nombre,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = servicio.descripcion,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = "${servicio.duracionMin} minutos · " + java.text.NumberFormat
-                                .getCurrencyInstance(java.util.Locale.forLanguageTag("es-CL"))
-                                .apply { maximumFractionDigits = 0 }.format(servicio.precioClp),
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.primary
-                        )
+fun CatalogoContent(estado:CatalogoEstado,onNavigateBack:()->Unit,
+    onNavigateToAgenda:(Long,Long)->Unit,onActualizar:()->Unit={}) {
+    Scaffold(topBar={TopAppBar(title={Text("Nuestros Servicios")},
+        navigationIcon={IconButton(onClick=onNavigateBack){Icon(Icons.AutoMirrored.Filled.ArrowBack,"Volver")}},
+        actions={TextButton(onClick=onActualizar,enabled=!estado.cargando,modifier=Modifier.testTag("catalogo-actualizar")){Text("Actualizar")}},
+        colors=TopAppBarDefaults.topAppBarColors(containerColor=MaterialTheme.colorScheme.background))}) { padding ->
+        LazyColumn(Modifier.fillMaxSize().padding(padding).padding(horizontal=16.dp).testTag("catalogo"),
+            contentPadding=PaddingValues(bottom=24.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
+            if(estado.cargando) item { LinearProgressIndicator(Modifier.fillMaxWidth()); Text("Cargando catálogo…") }
+            estado.error?.let { mensaje -> item {
+                Column(Modifier.testTag("catalogo-error")) {
+                    Text(mensaje,color=MaterialTheme.colorScheme.error)
+                    if(estado.actualizadoEn!=null) Text("Mostrando la última copia guardada. Actualiza antes de elegir una sesión.")
+                    TextButton(onClick=onActualizar,enabled=!estado.cargando){Text("Reintentar")}
+                }
+            } }
+            if(!estado.cargando && estado.error==null && estado.servicios.isEmpty()) item {
+                Text("No hay servicios disponibles por ahora.",Modifier.testTag("catalogo-vacio"))
+            }
+            items(estado.servicios,key={it.id}) { servicio ->
+                var expandido by rememberSaveable(servicio.id) { mutableStateOf(false) }
+                val profesionales=estado.especialistas.filter { servicio.id in estado.serviciosPorEspecialista[it.id].orEmpty() }
+                Card(Modifier.fillMaxWidth().testTag("servicio-catalogo-${servicio.id}"),
+                    colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface),
+                    border=BorderStroke(1.5.dp,MaterialTheme.colorScheme.secondary.copy(alpha=.6f))) {
+                    Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+                        Text(servicio.nombre,style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold,
+                            color=MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(servicio.descripcion,style=MaterialTheme.typography.bodyMedium)
+                        Text("${servicio.duracionMin} minutos · ${servicio.precioFormateado()}",
+                            style=MaterialTheme.typography.labelLarge,color=MaterialTheme.colorScheme.primary)
+                        Text(if(servicio.permiteOnline) "Consulta presencial u online según especialista" else "Consulta presencial",
+                            style=MaterialTheme.typography.bodySmall)
+                        TextButton(onClick={expandido=!expandido},modifier=Modifier.testTag("ver-especialistas-${servicio.id}")) {
+                            Text(if(expandido) "Ocultar especialistas" else "Ver especialistas")
+                        }
+                        if(expandido) {
+                            if(profesionales.isEmpty()) Text("No hay especialistas disponibles para este servicio.")
+                            profesionales.forEach { profesional ->
+                                HorizontalDivider()
+                                Text(profesional.nombre,style=MaterialTheme.typography.titleSmall)
+                                Text(profesional.especialidad)
+                                if(profesional.descripcion.isNotBlank()) Text(profesional.descripcion,style=MaterialTheme.typography.bodySmall)
+                                val modalidades=buildList {
+                                    if(profesional.permitePresencial) add("Presencial")
+                                    if(servicio.permiteOnline && profesional.permiteOnline) add("Online")
+                                }
+                                Text(modalidades.joinToString(" · "),style=MaterialTheme.typography.labelMedium)
+                                Button(onClick={onNavigateToAgenda(servicio.id,profesional.id)},
+                                    enabled=estado.vigente && !estado.cargando && modalidades.isNotEmpty(),
+                                    modifier=Modifier.testTag("elegir-${servicio.id}-${profesional.id}")) { Text("Elegir a ${profesional.nombre}") }
+                            }
+                        }
                     }
                 }
             }
@@ -112,18 +94,9 @@ fun CatalogoContent(
     }
 }
 
-// La vista previa utiliza ejemplos locales y no necesita abrir Room.
-@Preview(showBackground = true, showSystemUi = true)
+@Preview(showBackground=true)
 @Composable
 fun CatalogoScreenPreview() {
-    SanaesenciaTheme {
-        CatalogoContent(
-            listaServicios = listOf(
-                ServicioEntity(id = 1, nombre = "Terapia Psicológica", descripcion = "Sesión individual.", precioClp = 35000, categoria = "Terapia", duracionMin = 60),
-                ServicioEntity(id = 2, nombre = "Masoterapia", descripcion = "Masaje descontracturante.", precioClp = 25000, categoria = "Terapia", duracionMin = 60)
-            ),
-            onNavigateBack = {},
-            onNavigateToAgenda = {}
-        )
-    }
+    SanaesenciaTheme { CatalogoContent(CatalogoEstado(servicios=listOf(ServicioEntity(id=1,nombre="Terapia Psicológica",
+        descripcion="Sesión individual.",categoria="Servicios del centro",duracionMin=60,precioClp=30000)),cargando=false,vigente=true),{},{_,_->}) }
 }

@@ -49,7 +49,10 @@ class CapturasDisenoTest {
             com.example.sanaesencia.data.local.seed.CatalogoCentro.instalar(app.container.database)
             app.container.database.servicioDao().obtenerPorNombre("Psicología infantojuvenil")!!.id
         }
-        compose.setContent { SanaesenciaTheme { AgendaScreen(servicioIdPreseleccionado=servicioId,onNavigateBack={}) } }
+        val vm=com.example.sanaesencia.viewmodel.AgendaViewModel(app.container.citaRepository,
+            com.example.sanaesencia.data.repository.ServicioRepository(app.container.database.servicioDao()),
+            com.example.sanaesencia.data.repository.EspecialistaRepository(app.container.database.especialistaDao()),"captura@example.com")
+        compose.setContent { SanaesenciaTheme { AgendaScreen(servicioIdPreseleccionado=servicioId,viewModelOverride=vm,onNavigateBack={}) } }
         compose.waitUntil(10_000) {
             compose.onAllNodes(hasText("Samantha Bastías",substring=true)).fetchSemanticsNodes().isNotEmpty()
         }

@@ -19,15 +19,13 @@ class PerfilViewModel(app: Application) : AndroidViewModel(app) {
         perfil = it; _fotoPerfilUri.value = it?.fotoUri?.let(Uri::parse)
     } } }
     fun actualizarFotoPerfil(uri: Uri?) { if (uri != null) ejecutar { cuenta.guardarFoto(uri) } }
-    fun guardar(nombre: String, telefono: String) = ejecutar { cuenta.editarPerfil(nombre,telefono) }
-    fun cambiarClave(actual: String, nueva: String, confirmacion: String) = ejecutar {
-        cuenta.cambiarClave(actual,nueva,confirmacion)
-    }
+    fun guardar(nombre: String, telefono: String, apellido: String) = ejecutar { cuenta.editarPerfil(nombre,telefono,apellido) }
     private fun ejecutar(bloque: suspend () -> Unit) {
         if (guardando) return
         guardando = true
         viewModelScope.launch {
             try { bloque(); mensaje = "Cambios guardados" }
+            catch (e: kotlinx.coroutines.CancellationException) { throw e }
             catch (e: Exception) { mensaje = e.message ?: "No se pudieron guardar los cambios" }
             finally { guardando = false }
         }

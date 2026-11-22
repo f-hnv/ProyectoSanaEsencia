@@ -14,5 +14,6 @@ data class ServicioEntity(
     val precioClp: Int,
     val permiteOnline: Boolean = true,
     val imagenUri: String? = null,
-    val activo: Boolean = true
+    val activo: Boolean = true,
+    val precioServidor: String? = null
 )

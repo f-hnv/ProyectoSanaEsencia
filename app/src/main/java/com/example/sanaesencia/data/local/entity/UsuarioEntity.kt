@@ -2,7 +2,7 @@ package com.example.sanaesencia.data.local.entity
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
-/** Cuenta local de demostración. La contraseña se verifica con PBKDF2 y sal individual. */
+/** Copia del perfil. Los campos hash/sal históricos quedan vacíos al iniciar sesión en el servidor. */
 @Entity(tableName = "usuarios")
 data class UsuarioEntity(
     @PrimaryKey val email: String,

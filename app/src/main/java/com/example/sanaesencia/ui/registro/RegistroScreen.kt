@@ -29,12 +29,13 @@ fun RegistroScreen(
     viewModel: RegistroViewModel = viewModel()
 ) {
     val scrollState = rememberScrollState()
-    // El contexto permite al ViewModel guardar los datos de registro del prototipo local.
+    // El repositorio envía el formulario al microservicio de usuarios.
     val context = LocalContext.current
 
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .imePadding()
             .padding(24.dp)
             .verticalScroll(scrollState),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -49,8 +50,9 @@ fun RegistroScreen(
 
         OutlinedTextField(
             value = viewModel.nombre.value,
+            enabled = !viewModel.cargando.value,
             onValueChange = { viewModel.onNombreChange(it) },
-            label = { Text("Nombre Completo") },
+            label = { Text("Nombre") },
             leadingIcon = { Icon(Icons.Filled.Person, contentDescription = "Ícono de persona") },
             trailingIcon = { if (viewModel.nombreError.value != null) Icon(Icons.Filled.Warning, "Error", tint = MaterialTheme.colorScheme.error) },
             isError = viewModel.nombreError.value != null,
@@ -60,8 +62,19 @@ fun RegistroScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
+        OutlinedTextField(value=viewModel.apellido.value, onValueChange=viewModel::onApellidoChange,
+            label={ Text("Apellido") }, isError=viewModel.apellidoError.value != null,
+            supportingText={ viewModel.apellidoError.value?.let { Text(it) } },
+            enabled=!viewModel.cargando.value, singleLine=true, modifier=Modifier.fillMaxWidth())
+        OutlinedTextField(value=viewModel.run.value, onValueChange=viewModel::onRunChange,
+            label={ Text("RUN") }, placeholder={ Text("12345678-5") },
+            isError=viewModel.runError.value != null,
+            supportingText={ Text(viewModel.runError.value ?: "Sin puntos y con guion obligatorio") },
+            enabled=!viewModel.cargando.value, singleLine=true, modifier=Modifier.fillMaxWidth())
+
         OutlinedTextField(
             value = viewModel.email.value,
+            enabled = !viewModel.cargando.value,
             onValueChange = { viewModel.onEmailChange(it) },
             label = { Text("Correo Electrónico") },
             leadingIcon = { Icon(Icons.Filled.Email, contentDescription = "Ícono de correo") },
@@ -76,6 +89,7 @@ fun RegistroScreen(
 
         OutlinedTextField(
             value = viewModel.password.value,
+            enabled = !viewModel.cargando.value,
             onValueChange = { viewModel.onPasswordChange(it) },
             label = { Text("Contraseña") },
             leadingIcon = { Icon(Icons.Filled.Lock, contentDescription = "Ícono de candado") },
@@ -91,6 +105,7 @@ fun RegistroScreen(
 
         OutlinedTextField(
             value = viewModel.confirmPassword.value,
+            enabled = !viewModel.cargando.value,
             onValueChange = { viewModel.onConfirmPasswordChange(it) },
             label = { Text("Confirmar Contraseña") },
             leadingIcon = { Icon(Icons.Filled.Lock, contentDescription = "Ícono de candado") },
@@ -107,14 +122,16 @@ fun RegistroScreen(
         Button(
             // El ViewModel valida los campos y guarda el registro antes de volver al acceso.
             onClick = { viewModel.registrar(context = context, onSuccess = onNavigateToLogin) },
+            enabled = !viewModel.cargando.value,
             modifier = Modifier.fillMaxWidth().height(50.dp)
         ) {
-            Text("Registrarse")
+            Text(if (viewModel.cargando.value) "Creando cuenta…" else "Registrarse")
         }
+        viewModel.errorGeneral.value?.let { Text(it, color=MaterialTheme.colorScheme.error) }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        TextButton(onClick = onNavigateToLogin) {
+        TextButton(onClick = onNavigateToLogin, enabled=!viewModel.cargando.value) {
             Text("¿Ya tienes cuenta? Inicia sesión")
         }
     }

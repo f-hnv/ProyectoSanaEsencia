@@ -38,6 +38,7 @@ class TerapeutaViewModel(app: Application) : AndroidViewModel(app) {
         consulta?.cancel()
         _estado.update { it.copy(cargando = true, error = null) }
         consulta = viewModelScope.launch {
+            try {
             val usuario = cuenta.actual()
             val id = usuario?.especialistaId
             if (usuario?.rol != "ESPECIALISTA" || id == null) {
@@ -46,10 +47,18 @@ class TerapeutaViewModel(app: Application) : AndroidViewModel(app) {
             }
             val periodo = _estado.value.periodo
             _estado.update { it.copy(usuario = usuario) }
+            val catalogo=(getApplication<Application>() as com.example.sanaesencia.SanaesenciaApp).container.catalogoRepository
+            val idLocal=catalogo.idEspecialistaLocal(id)
+            if(idLocal==null) {
+                _estado.update { it.copy(cargando=false,citas=emptyList(),error="Tu perfil no aparece en el catálogo disponible. Consulta con administración.") }
+                return@launch
+            }
             // La consulta solo lee las citas del profesional autenticado y del mes seleccionado.
-            cuenta.db.citaDao().observarMesEspecialista(id, periodo.inicio, periodo.fin)
+            cuenta.db.citaDao().observarMesEspecialista(idLocal, periodo.inicio, periodo.fin)
                 .catch { _estado.update { it.copy(cargando = false, error = "No se pudo cargar tu agenda. Reintenta.") } }
                 .collect { citas -> _estado.update { it.copy(citas = citas, cargando = false) } }
+            } catch(e:kotlinx.coroutines.CancellationException) { throw e }
+            catch(e:Exception) { _estado.update { it.copy(cargando=false,error=e.message ?: "No se pudo cargar el catálogo de tu perfil") } }
         }
     }
 }

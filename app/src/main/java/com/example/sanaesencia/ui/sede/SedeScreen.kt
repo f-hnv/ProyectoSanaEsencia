@@ -29,6 +29,9 @@ fun SedeScreen(onNavigateBack: () -> Unit) {
     val app = context.applicationContext as SanaesenciaApp
     val vm: SedeViewModel = viewModel(factory = ViewModelFactory(app.container))
     val estado by vm.uiState.collectAsState()
+    val rutasVm: RutasViewModel = viewModel(factory = ViewModelFactory(app.container))
+    val recorrido by rutasVm.estado.collectAsState()
+    LaunchedEffect(estado.estado) { rutasVm.limpiar() }
     var errorMapa by remember { mutableStateOf<String?>(null) }
     val permisos = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         vm.onPermisoResultado(vm.tienePermiso())
@@ -61,7 +64,9 @@ fun SedeScreen(onNavigateBack: () -> Unit) {
                     errorMapa = "No hay una aplicación de mapas o navegador disponible."
                 }
             }
-        }, errorMapa = errorMapa)
+        }, errorMapa = errorMapa, recorrido = recorrido, onRecorrido = {
+            (estado.estado as? EstadoUbicacion.Exito)?.let { rutasVm.consultar(it.latitud, it.longitud) }
+        })
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -72,7 +77,9 @@ fun SedeContent(
     onUbicar: () -> Unit,
     onAjustes: () -> Unit,
     onMapa: () -> Unit,
-    errorMapa: String? = null
+    errorMapa: String? = null,
+    recorrido: RutaUiState = RutaUiState.Inicial,
+    onRecorrido: () -> Unit = {}
 ) {
     val umbral by com.example.sanaesencia.domain.model.ConfiguracionCentro.umbralKm.collectAsState()
     Scaffold(topBar = {
@@ -121,8 +128,43 @@ fun SedeContent(
                     }
                 }
             }
+            if (estado.estado is EstadoUbicacion.Exito) {
+                RecorridoContent(recorrido, onRecorrido)
+            }
             OutlinedButton(onClick = onMapa, modifier = Modifier.fillMaxWidth()) { Text("Ver sede en mapas") }
             errorMapa?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        }
+    }
+}
+
+@Composable
+fun RecorridoContent(estado: RutaUiState, onConsultar: () -> Unit) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("Tu recorrido en auto", style = MaterialTheme.typography.titleMedium)
+            Text("Al consultar, compartes tu ubicación con TrueWay a través de RapidAPI para calcular el recorrido hasta el centro.",
+                style = MaterialTheme.typography.bodySmall)
+            when(val resultado = estado) {
+                RutaUiState.Inicial -> Text("Consulta la distancia por calles y el tiempo estimado del viaje.")
+                RutaUiState.Cargando -> {
+                    CircularProgressIndicator(Modifier.size(24.dp))
+                    Text("Calculando recorrido…")
+                }
+                is RutaUiState.Exito -> {
+                    Text("${resultado.recorrido.distanciaTexto} · ${resultado.recorrido.duracionTexto}",
+                        style = MaterialTheme.typography.titleLarge)
+                    Text("Estimación de TrueWay Directions. El tiempo real puede variar; no es navegación en vivo.",
+                        style = MaterialTheme.typography.bodySmall)
+                }
+                is RutaUiState.Error -> Text(resultado.mensaje, color = MaterialTheme.colorScheme.error)
+            }
+            OutlinedButton(onClick = onConsultar, enabled = estado !is RutaUiState.Cargando) {
+                Text(when(estado) {
+                    is RutaUiState.Error -> "Reintentar recorrido"
+                    is RutaUiState.Exito -> "Actualizar recorrido"
+                    else -> "Consultar recorrido con TrueWay"
+                })
+            }
         }
     }
 }

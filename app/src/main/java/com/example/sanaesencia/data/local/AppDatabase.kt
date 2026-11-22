@@ -19,8 +19,9 @@ import com.example.sanaesencia.data.local.entity.ServicioEntity
 // Si más adelante cambia alguna entidad, hay que subir "version" y definir una migración.
 @Database(
     entities = [ServicioEntity::class, EspecialistaEntity::class, CitaEntity::class, UsuarioEntity::class,
-        BoxEntity::class, MensajeEntity::class, EspecialistaServicioEntity::class],
-    version = 4,
+        BoxEntity::class, MensajeEntity::class, EspecialistaServicioEntity::class,
+        CatalogoVinculoEntity::class, CatalogoSincronizacionEntity::class],
+    version = 5,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -30,8 +31,17 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun servicioDao(): ServicioDao
     abstract fun especialistaDao(): EspecialistaDao
     abstract fun citaDao(): CitaDao
+    abstract fun catalogoRemotoDao(): com.example.sanaesencia.data.local.dao.CatalogoRemotoDao
 
     companion object {
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE servicios ADD COLUMN precioServidor TEXT")
+                db.execSQL("CREATE TABLE IF NOT EXISTS catalogo_vinculos (origen TEXT NOT NULL, tipo TEXT NOT NULL, servidorId INTEGER NOT NULL, localId INTEGER NOT NULL, PRIMARY KEY(origen,tipo,servidorId))")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_catalogo_vinculos_origen_tipo_localId ON catalogo_vinculos(origen,tipo,localId)")
+                db.execSQL("CREATE TABLE IF NOT EXISTS catalogo_sincronizacion (origen TEXT NOT NULL, actualizadoEn INTEGER NOT NULL, PRIMARY KEY(origen))")
+            }
+        }
         val MIGRATION_3_4 = object : Migration(3, 4) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE especialistas ADD COLUMN permitePresencial INTEGER NOT NULL DEFAULT 1")
@@ -121,7 +131,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "sanaesencia_db" // nombre del archivo .db en el dispositivo
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                     .addCallback(INTEGRIDAD)
                     .build()
                     .also { INSTANCE = it } // se guarda para que las próximas llamadas la reutilicen

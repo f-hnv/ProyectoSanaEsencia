@@ -29,9 +29,13 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.RuleChain
+import com.example.sanaesencia.data.remote.SesionBackend
 
 class ContactoAccesoPerfilTest {
-    @get:Rule val compose = createComposeRule()
+    private val backend=BackendUsuariosFixture()
+    private val compose = createComposeRule()
+    @get:Rule val reglas:RuleChain=RuleChain.outerRule(backend).around(compose)
     private val context get() = InstrumentationRegistry.getInstrumentation().targetContext
 
     @Test fun contactoUsaNumeroOficialYAbreAlternativaSiNoHayWhatsapp() {
@@ -69,30 +73,22 @@ class ContactoAccesoPerfilTest {
     }
 
     @Test fun accesoValidoMuestraBienvenidaYNavegaUnaSolaVez() {
-        val nombre = "acceso-test-${System.nanoTime()}"
-        val preferencias = context.getSharedPreferences(nombre, Context.MODE_PRIVATE)
-        preferencias.edit().putString("email_registrado","prueba.sanaesencia@gmail.com")
-            .putString("password_registrada","Prueba123").commit()
-        val destino = object : ContextWrapper(context) {
-            override fun getSharedPreferences(name: String, mode: Int) = preferencias
-        }
         val vm = LoginViewModel()
         var navegaciones = 0
         try {
-            compose.setContent { CompositionLocalProvider(LocalContext provides destino) {
+            compose.setContent { CompositionLocalProvider(LocalContext provides context) {
                 SanaesenciaTheme { LoginScreen({ navegaciones++ }, {}, viewModel=vm) }
             } }
-            compose.onNodeWithText("Correo Electrónico").performTextInput("prueba.sanaesencia@gmail.com")
-            compose.onNodeWithText("Contraseña").performTextInput("Prueba123")
+            compose.onNodeWithText("Correo Electrónico").performTextInput("paciente.fixture@example.com")
+            compose.onNodeWithText("Contraseña").performTextInput(backend.clave)
             compose.onNodeWithText("Ingresar").performScrollTo().performClick()
             compose.waitUntil(15_000) { vm.accesoConcedido.value }
             compose.onNodeWithText("¡Bienvenido a Sanaesencia!").performScrollTo().assertIsDisplayed()
             compose.waitUntil(15_000) { navegaciones == 1 }
             compose.runOnIdle { assertEquals(1,navegaciones) }
-            assertEquals("prueba.sanaesencia@gmail.com",preferencias.getString("email_sesion",null))
+            assertEquals("paciente.fixture@example.com",SesionBackend.actual()?.usuario?.correo)
         } finally {
             runBlocking { vm.viewModelScope.coroutineContext[Job]?.cancelAndJoin() }
-            context.deleteSharedPreferences(nombre)
         }
     }
 

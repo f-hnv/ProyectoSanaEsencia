@@ -83,7 +83,14 @@ fun SanaShell(nav:NavHostController,contenido:@Composable (UsuarioEntity?)->Unit
                         Text(if (usuario == null) "Inicia sesión para continuar" else "Esta sección no corresponde al rol de tu cuenta")
                         TextButton(onClick = { ir(if (usuario == null) "login" else "home") }) { Text("Volver") }
                     }
-                    else -> contenido(usuario)
+                    else -> Column(Modifier.fillMaxSize()) {
+                        if (autenticada && com.example.sanaesencia.BuildConfig.DEBUG && usuario?.rol != "ADMIN") {
+                            Text("Las citas se guardan en el servidor. Los mensajes siguen disponibles solo en este dispositivo.",
+                                Modifier.fillMaxWidth().padding(horizontal=16.dp, vertical=8.dp),
+                                style=MaterialTheme.typography.bodySmall)
+                        }
+                        Box(Modifier.weight(1f)) { contenido(usuario) }
+                    }
                 }
                 AnimatedVisibility(transicion,modifier=Modifier.align(Alignment.Center)) {
                     Surface(shape=MaterialTheme.shapes.extraLarge,shadowElevation=6.dp,

@@ -14,7 +14,8 @@ import com.example.sanaesencia.domain.model.*
 import com.example.sanaesencia.viewmodel.*
 
 @Composable
-fun TerapeutaScreen(vm: TerapeutaViewModel = viewModel()) {
+fun TerapeutaScreen(vm: TerapeutaViewModel? = null) {
+    if(vm==null) { AgendaEspecialistaServidor(); return }
     val estado by vm.estado.collectAsState()
     TerapeutaContent(estado, vm::cambiarMes, vm::cargar)
 }

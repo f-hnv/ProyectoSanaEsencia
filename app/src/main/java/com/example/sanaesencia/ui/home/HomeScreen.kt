@@ -46,39 +46,8 @@ fun HomeScreen(
     onNavigateToSede: () -> Unit,
     onNavigateToContacto: () -> Unit
 ) {
-    val context = LocalContext.current
-    val app = context.applicationContext as com.example.sanaesencia.SanaesenciaApp
-    val factory = com.example.sanaesencia.viewmodel.ViewModelFactory(app.container)
-    val viewModel: AgendaViewModel = viewModel(factory = factory)
-
-    val estado by viewModel.uiState.collectAsState()
-    val proximasCitas = estado.proximasCitas
-    val snackbar = remember { SnackbarHostState() }
-    LaunchedEffect(estado.operacion) {
-        when (val operacion = estado.operacion) {
-            is EstadoOperacion.Exito -> { snackbar.showSnackbar(operacion.mensaje); viewModel.resultadoConsumido() }
-            is EstadoOperacion.Error -> { snackbar.showSnackbar(operacion.error.mensaje); viewModel.resultadoConsumido() }
-            else -> Unit
-        }
-    }
-
-    val sharedPref = context.getSharedPreferences("sanaesencia_prefs", Context.MODE_PRIVATE)
-    val nombreUsuario = sharedPref.getString("nombre_registrado", "Usuario") ?: "Usuario"
-
-    HomeContent(
-        nombreUsuario = nombreUsuario,
-        proximasCitas = proximasCitas,
-        onCancelarCita = { citaId -> viewModel.cancelarCita(citaId) },
-        onNavigateToCatalogo = onNavigateToCatalogo,
-        onNavigateToAgenda = onNavigateToAgenda,
-        onNavigateToPerfil = onNavigateToPerfil,
-        onNavigateToSede = onNavigateToSede,
-        onNavigateToContacto = onNavigateToContacto,
-        operacionEnCurso = estado.operacion is EstadoOperacion.Cargando,
-        snackbar = snackbar
-    )
+    InicioServidor(onNavigateToCatalogo,onNavigateToAgenda,onNavigateToPerfil,onNavigateToSede,onNavigateToContacto)
 }
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeContent(

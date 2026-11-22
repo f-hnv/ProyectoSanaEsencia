@@ -67,30 +67,4 @@ class MejorasCentroTest {
             assertTrue(rechazado)
         } finally{db.close()}
     }
-    @Test fun perfilRolesContrasenaYConversacionPersisten()=runBlocking {
-        val cuenta=CuentaRepository(context);val email="perfil.${System.nanoTime()}@gmail.com"
-        cuenta.registrar("Paciente de prueba",email,"Prueba123")
-        assertNotNull(cuenta.entrar(email,"Prueba123"))
-        cuenta.editarPerfil("Nombre actualizado","+56 9 1234 5678")
-        val msg=MensajeRepository(context)
-        msg.enviar(email,"Consulta de prueba local")
-        assertEquals("Consulta de prueba local",msg.observar(email).first().single().texto)
-        cuenta.cambiarClave("Prueba123","Nueva123","Nueva123")
-        cuenta.salir(); assertNull(cuenta.actual())
-        assertNull(cuenta.entrar(email,"Prueba123"))
-        assertNotNull(cuenta.entrar(email,"Nueva123"))
-        assertEquals("+56 9 1234 5678",cuenta.actual()!!.telefono)
-        assertEquals("Nombre actualizado",cuenta.actual()!!.nombre)
-        var bloqueado=false
-        try{msg.enviar("ajeno@gmail.com","No autorizado")}catch(_:IllegalArgumentException){bloqueado=true}
-        assertTrue(bloqueado)
-        assertNotEquals("Nueva123",cuenta.actual()!!.hash)
-        assertNotNull(cuenta.entrar(CuentaRepository.ADMIN_DEMO,CuentaRepository.CLAVE_DEMO))
-        msg.enviar(email,"Respuesta del centro de demostración")
-        assertEquals(2,msg.observar(email).first().size)
-        val profesional="profesional.${System.nanoTime()}@gmail.com"
-        cuenta.crearEspecialista("Profesional Prueba",profesional,"Prueba123","Psicología","Datos ficticios",listOf(1))
-        assertEquals("ESPECIALISTA",cuenta.entrar(profesional,"Prueba123")!!.rol)
-        cuenta.salir()
-    }
 }

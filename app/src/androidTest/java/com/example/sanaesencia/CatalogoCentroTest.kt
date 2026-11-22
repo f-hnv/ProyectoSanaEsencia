@@ -93,13 +93,16 @@ class CatalogoCentroTest {
         try {
             SeedData.poblarSiVacia(anterior)
             anterior.openHelper.writableDatabase.apply {
+                execSQL("ALTER TABLE servicios DROP COLUMN precioServidor")
+                execSQL("DROP TABLE catalogo_vinculos")
+                execSQL("DROP TABLE catalogo_sincronizacion")
                 execSQL("ALTER TABLE especialistas DROP COLUMN permitePresencial")
                 execSQL("ALTER TABLE especialistas DROP COLUMN permiteOnline")
                 execSQL("PRAGMA user_version = 3")
             }
         } finally { anterior.close() }
         val migrada = Room.databaseBuilder(context, AppDatabase::class.java, archivo.absolutePath)
-            .addMigrations(AppDatabase.MIGRATION_3_4).addCallback(AppDatabase.INTEGRIDAD).build()
+            .addMigrations(AppDatabase.MIGRATION_3_4,AppDatabase.MIGRATION_4_5).addCallback(AppDatabase.INTEGRIDAD).build()
         try {
             assertEquals("Dra. Paula Demo", migrada.especialistaDao().obtenerPorId(1)!!.nombre)
             assertTrue(migrada.especialistaDao().obtenerPorId(1)!!.permitePresencial)

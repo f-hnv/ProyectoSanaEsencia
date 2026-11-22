@@ -35,9 +35,9 @@ sealed class Rutas(val ruta: String) {
     object CatalogoServicios : Rutas("catalogo_servicios")
 
     // Los argumentos distinguen una reserva de servicio de la reprogramación de una cita existente.
-    object Agenda : Rutas("agenda?servicioId={servicioId}&citaId={citaId}") {
-        fun crearRuta(servicioId: Long?, citaId: Long?) =
-            "agenda?servicioId=${servicioId?.toString() ?: ""}&citaId=${citaId?.toString() ?: ""}"
+    object Agenda : Rutas("agenda?servicioId={servicioId}&citaId={citaId}&especialistaId={especialistaId}") {
+        fun crearRuta(servicioId: Long?, citaId: Long?, especialistaId:Long?=null) =
+            "agenda?servicioId=${servicioId?.toString() ?: ""}&citaId=${citaId?.toString() ?: ""}&especialistaId=${especialistaId?.toString() ?: ""}"
     }
 
     object Perfil : Rutas("perfil")
@@ -97,7 +97,7 @@ fun SanaesenciaNavigation(navController: NavHostController) {
         composable(Rutas.CatalogoServicios.ruta) {
             CatalogoScreen(
                 onNavigateBack = { navController.popBackStack() },
-                onNavigateToAgenda = { servicioId -> navController.navigate(Rutas.Agenda.crearRuta(servicioId, null)) }
+                onNavigateToAgenda = { servicioId,especialistaId -> navController.navigate(Rutas.Agenda.crearRuta(servicioId, null,especialistaId)) }
             )
         }
 
@@ -105,7 +105,8 @@ fun SanaesenciaNavigation(navController: NavHostController) {
             route = Rutas.Agenda.ruta,
             arguments = listOf(
                 navArgument("servicioId") { type = NavType.StringType; nullable = true },
-                navArgument("citaId") { type = NavType.StringType; nullable = true }
+                navArgument("citaId") { type = NavType.StringType; nullable = true },
+                navArgument("especialistaId") { type = NavType.StringType; nullable = true }
             )
         ) { backStackEntry ->
             val servicioIdStr = backStackEntry.arguments?.getString("servicioId")
@@ -115,6 +116,8 @@ fun SanaesenciaNavigation(navController: NavHostController) {
             val citId = if (citaIdStr.isNullOrBlank()) null else citaIdStr.toLongOrNull()
 
             AgendaScreen(
+                onVerCitas = { navController.popBackStack(Rutas.Home.ruta,false) },
+                especialistaIdPreseleccionado = backStackEntry.arguments?.getString("especialistaId")?.toLongOrNull(),
                 servicioIdPreseleccionado = servId,
                 citaIdAEditar = citId,
                 onNavigateToSede = { navController.navigate(Rutas.Sede.ruta) },

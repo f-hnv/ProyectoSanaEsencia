@@ -21,6 +21,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
 import com.example.sanaesencia.domain.model.HorariosAgenda
+import com.example.sanaesencia.data.repository.CatalogoRepository
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.first
 
 sealed interface EstadoOperacion {
     data object Inactivo : EstadoOperacion
@@ -55,7 +58,8 @@ class AgendaViewModel(
     private val citaRepository: CitaRepository,
     private val servicioRepository: ServicioRepository,
     private val especialistaRepository: EspecialistaRepository,
-    private val emailPaciente: String
+    private val emailPaciente: String,
+    private val catalogoRepository:CatalogoRepository?=null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AgendaUiState())
@@ -107,7 +111,7 @@ class AgendaViewModel(
     fun prepararEdicion(citaId: Long) {
         viewModelScope.launch {
             val citaDetalle = citaRepository.obtenerDetallePorId(citaId) ?: return@launch
-            val especialista = especialistaRepository.obtenerPorId(citaDetalle.cita.especialistaId)
+            val especialista = citaDetalle.especialista
             _uiState.update {
                 it.copy(
                     citaEditandoId = citaId,
@@ -125,19 +129,35 @@ class AgendaViewModel(
         }
     }
 
-    fun onServicioSeleccionado(servicioId: Long) {
+    fun onServicioSeleccionado(servicioId: Long, especialistaPreseleccionado:Long?=null) {
         viewModelScope.launch {
+            try {
             val servicio = servicioRepository.obtenerPorId(servicioId)
+            requireNotNull(servicio) { "El servicio ya no está disponible. Actualiza el catálogo" }
+            val candidatos=especialistaRepository.observarParaServicio(servicioId).first()
+            val seleccionado=candidatos.find { it.id==especialistaPreseleccionado }
             _uiState.update {
                 it.copy(
                     servicioSeleccionado = servicio,
+                    especialistas = candidatos,
+                    especialistaId = seleccionado?.id,
                     fechaHoraInicio = null,
-                    modalidad = if (servicio?.permiteOnline == false) Modalidad.PRESENCIAL else it.modalidad,
+                    modalidad = when {
+                        seleccionado!=null && !seleccionado.permitePresencial -> Modalidad.ONLINE
+                        !servicio.permiteOnline || seleccionado?.permiteOnline==false -> Modalidad.PRESENCIAL
+                        else -> it.modalidad
+                    },
                     errores = it.errores.copy(servicio = null, modalidad = null)
                 )
             }
             cargarEspecialistas()
             cargarHorarios()
+            if(seleccionado!=null) onEspecialistaSeleccionado(seleccionado.id)
+            } catch(e:CancellationException) { throw e }
+            catch(e:Exception) {
+                _uiState.update { it.copy(servicioSeleccionado=null,especialistaId=null,cargandoEspecialistas=false,
+                    errorEspecialistas=e.message ?: "No se pudo cargar la selección") }
+            }
         }
     }
 
@@ -229,6 +249,15 @@ class AgendaViewModel(
         _uiState.update { it.copy(errores = ErroresFormularioAgenda(), operacion = EstadoOperacion.Cargando) }
 
         viewModelScope.launch {
+            try {
+                if(catalogoRepository!=null && (actual.citaEditandoId==null || catalogoRepository.idServicioServidor(servicioId)!=null)) {
+                    catalogoRepository.validarSeleccion(servicioId,especialistaId,actual.modalidad)
+                }
+            } catch(e:CancellationException) { throw e }
+            catch(e:Exception) {
+                _uiState.update { it.copy(operacion=EstadoOperacion.Error(ErrorAgenda.Catalogo(e.message ?: "Actualiza el catálogo para continuar"))) }
+                return@launch
+            }
             // Una reserva nueva inserta una cita; la reprogramación actualiza la fecha de la cita existente.
             val resultado = if (actual.citaEditandoId != null) {
                 citaRepository.reprogramar(actual.citaEditandoId, fechaHora, actual.modalidad)

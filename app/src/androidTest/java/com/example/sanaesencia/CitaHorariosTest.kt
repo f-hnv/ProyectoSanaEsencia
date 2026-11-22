@@ -24,6 +24,9 @@ class CitaHorariosTest {
                 fechaHoraInicio=fecha(20,10),duracionMin=50,modalidad=Modalidad.PRESENCIAL,estado=EstadoCita.CANCELADA))
             // Reconstruir esquema v1 sin las columnas y tablas de la nueva versión.
             val sql=anterior.openHelper.writableDatabase
+            sql.execSQL("ALTER TABLE servicios DROP COLUMN precioServidor")
+            sql.execSQL("DROP TABLE catalogo_vinculos")
+            sql.execSQL("DROP TABLE catalogo_sincronizacion")
             sql.execSQL("DROP TRIGGER IF EXISTS citas_sin_traslapes_insert")
             sql.execSQL("DROP TRIGGER IF EXISTS citas_sin_traslapes_update")
             sql.execSQL("DROP INDEX index_citas_boxId")
@@ -36,7 +39,7 @@ class CitaHorariosTest {
             anterior.openHelper.writableDatabase.execSQL("PRAGMA user_version = 1")
         } finally { anterior.close() }
         val migrada = Room.databaseBuilder(context,AppDatabase::class.java,archivo.absolutePath)
-            .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4).addCallback(AppDatabase.INTEGRIDAD).build()
+            .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4,AppDatabase.MIGRATION_4_5).addCallback(AppDatabase.INTEGRIDAD).build()
         try {
             assertEquals(1L,migrada.citaDao().obtenerDetallePorId(1)!!.cita.id)
             assertEquals("migration@example.com",migrada.citaDao().obtenerDetallePorId(1)!!.cita.emailPaciente)
