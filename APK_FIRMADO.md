@@ -30,7 +30,7 @@ La optimización parcial experimental está desactivada: la primera prueba relea
 
 El APK no contiene la clave de RapidAPI. `RutasApi` llama al endpoint autenticado de `ms-reservas`; el servidor es quien usa TrueWay. La app informa que al consultar comparte las coordenadas con SanaEsencia y con el proveedor. Los límites de consultas y la clave privada se configuran en el servidor.
 
-## Instalar en la tablet
+## Instalar en el dispositivo
 
 Descarga verificada: https://54.204.182.160/descargas/SanaEsencia-1.3.apk
 
@@ -41,9 +41,9 @@ Esta actualización muestra solo fechas con cupos disponibles para profesional y
 El 22/11/2026 pasaron assembleRelease, lintRelease, verificación de firma, inspección de ausencia de secretos y arranque del APK release en el emulador. La descarga HTTPS devolvió el mismo SHA-256. Queda pendiente la prueba física en la Lenovo Tab P11 con Android 14.
 
 1. Mantener el Learner Lab, EC2 y sus servicios activos.
-2. Descargar el APK desde el enlace HTTPS de SanaEsencia o copiarlo por USB a Descargas de la tablet.
+2. Descargar el APK desde el enlace HTTPS de SanaEsencia o copiarlo por USB a Descargas del dispositivo
 3. Abrir el archivo. Si Android solicita permiso, autorizar a ese navegador/gestor de archivos para instalar esta aplicación.
-4. Instalar y abrir SanaEsencia. No requiere conectar la tablet a Android Studio ni usar ADB.
+4. Instalar y abrir SanaEsencia. No requiere conectar el dispositivo a Android Studio ni usar ADB.
 5. Crear una cuenta de paciente en AWS o iniciar sesión con una cuenta existente allí. La cuenta ADMIN muestra administración; para reservar usar PACIENTE.
 6. Probar catálogo, cupos, una reserva con box, modificación, cancelación con 12 horas y Cómo llegar.
 
